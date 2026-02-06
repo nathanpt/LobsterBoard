@@ -590,6 +590,9 @@ body {
   border-left: 1px solid var(--border);
   padding: 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .properties-panel h3 {
@@ -757,6 +760,7 @@ body {
   border-top: 1px solid var(--border);
   background: var(--bg-secondary);
   min-height: 180px;
+  margin-top: auto;
 }
 
 .sidebar-mascot img {
