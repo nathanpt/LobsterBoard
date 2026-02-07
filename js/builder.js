@@ -1488,9 +1488,9 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '127.0.0.1';
-const OPENCLAW_URL = (process.env.OPENCLAW_URL || 'http://localhost:18789').replace(/\\/$/, '');
+const OPENCLAW_URL = (process.env.OPENCLAW_URL || 'http://localhost:11470').replace(/\\/$/, '');
 
-const ALLOWED_API_PATHS = ['/api/status', '/api/health'];
+const ALLOWED_API_PATHS = ['/api/status', '/api/health', '/api/activity', '/api/cron', '/api/logs', '/api/sessions', '/api/usage/tokens'];
 
 const MIME_TYPES = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
