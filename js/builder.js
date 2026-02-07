@@ -23,8 +23,9 @@ const state = {
 // Process widget HTML to conditionally remove header
 function processWidgetHtml(html, showHeader) {
   if (showHeader !== false) return html;
-  // Remove the dash-card-head element
-  return html.replace(/<div class="dash-card-head">[\s\S]*?<\/div>\s*/i, '');
+  // Remove the dash-card-head element (handles multi-line with newlines)
+  const headerRegex = /<div\s+class="dash-card-head"[^>]*>[\s\S]*?<\/div>/gi;
+  return html.replace(headerRegex, '');
 }
 
 // ─────────────────────────────────────────────
