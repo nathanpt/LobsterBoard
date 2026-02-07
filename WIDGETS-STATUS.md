@@ -4,7 +4,7 @@
 - [x] weather - wttr.in (free, no key) - **VERIFIED**
 - [x] weather-multi - wttr.in (free, no key) - **VERIFIED**
 - [x] clock - pure JS - **VERIFIED**
-- [ ] world-clock - pure JS
+- [x] world-clock - uses wttr.in for timezone - **VERIFIED**
 - [ ] countdown - pure JS
 - [ ] pomodoro - pure JS
 - [ ] image-embed - static display
