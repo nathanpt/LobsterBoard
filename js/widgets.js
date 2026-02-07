@@ -1998,13 +1998,14 @@ const WIDGETS = {
     hasApiKey: false,
     properties: {
       title: 'World Clock',
-      timezones: 'America/New_York|New York,Europe/London|London,Asia/Tokyo|Tokyo',
-      format24h: false
+      locations: 'New York,London,Tokyo',
+      format24h: false,
+      refreshInterval: 60
     },
     preview: `<div style="padding:4px;font-size:11px;">
-      <div>🇺🇸 New York: 5:30 PM</div>
-      <div>🇬🇧 London: 10:30 PM</div>
-      <div>🇯🇵 Tokyo: 7:30 AM</div>
+      <div>🕐 New York: 5:30 PM</div>
+      <div>🕐 London: 10:30 PM</div>
+      <div>🕐 Tokyo: 7:30 AM</div>
     </div>`,
     generateHtml: (props) => `
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
@@ -2012,27 +2013,42 @@ const WIDGETS = {
           <span class="dash-card-title">🌍 ${props.title || 'World Clock'}</span>
         </div>
         <div class="dash-card-body" id="${props.id}-clocks">
+          <div style="color:#8b949e;font-size:12px;">Loading times...</div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // World Clock Widget: ${props.id}
-      // Format: timezone|label,timezone|label (label optional)
-      const tzs_${props.id.replace(/-/g, '_')} = '${props.timezones || 'UTC'}'.split(',').map(entry => {
-        const parts = entry.trim().split('|');
-        const tz = parts[0].trim();
-        const label = parts[1] ? parts[1].trim() : tz.split('/').pop().replace(/_/g, ' ');
-        return { tz, label };
-      });
-      function update_${props.id.replace(/-/g, '_')}() {
+      // World Clock Widget: ${props.id} (uses wttr.in for timezone data)
+      const locs_${props.id.replace(/-/g, '_')} = '${props.locations || 'New York,London,Tokyo'}'.split(',').map(s => s.trim());
+      const hour12_${props.id.replace(/-/g, '_')} = ${!props.format24h};
+      
+      async function update_${props.id.replace(/-/g, '_')}() {
         const container = document.getElementById('${props.id}-clocks');
-        const hour12 = ${!props.format24h};
-        container.innerHTML = tzs_${props.id.replace(/-/g, '_')}.map(item => {
-          const time = new Date().toLocaleTimeString('en-US', { timeZone: item.tz, hour: 'numeric', minute: '2-digit', hour12 });
-          return '<div class="tz-row"><span class="tz-city">' + item.label + '</span><span class="tz-time">' + time + '</span></div>';
-        }).join('');
+        const results = await Promise.all(locs_${props.id.replace(/-/g, '_')}.map(async (loc) => {
+          try {
+            const res = await fetch('https://wttr.in/' + encodeURIComponent(loc) + '?format=j1');
+            const data = await res.json();
+            const area = data.nearest_area[0];
+            const city = area.areaName[0].value;
+            const localTime = data.current_condition[0].localObsDateTime;
+            // Parse the time from format "2026-02-07 12:30 AM"
+            const timePart = localTime.split(' ').slice(1).join(' ');
+            let displayTime = timePart;
+            if (!hour12_${props.id.replace(/-/g, '_')}) {
+              // Convert to 24h if needed
+              const d = new Date('2000-01-01 ' + timePart);
+              displayTime = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            }
+            return { city, time: displayTime, ok: true };
+          } catch (e) {
+            return { city: loc, time: '—', ok: false };
+          }
+        }));
+        container.innerHTML = results.map(r => 
+          '<div class="tz-row"><span class="tz-city">' + r.city + '</span><span class="tz-time">' + r.time + '</span></div>'
+        ).join('');
       }
       update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, 1000);
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
     `
   },
 

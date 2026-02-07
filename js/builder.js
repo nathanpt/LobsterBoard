@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initCanvas() {
   const canvas = document.getElementById('canvas');
   updateCanvasSize();
-  
+
   // Canvas click to deselect
   canvas.addEventListener('click', (e) => {
     if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
@@ -55,24 +55,24 @@ function initCanvas() {
 function updateCanvasSize(preserveZoom = false) {
   const canvas = document.getElementById('canvas');
   const wrapper = document.getElementById('canvas-wrapper');
-  
+
   // Calculate zoom to fit (only if not preserving zoom)
   if (!preserveZoom) {
     const wrapperRect = wrapper.getBoundingClientRect();
     const maxWidth = wrapperRect.width - 80;
     const maxHeight = wrapperRect.height - 80;
-    
+
     const scaleX = maxWidth / state.canvas.width;
     const scaleY = maxHeight / state.canvas.height;
     state.zoom = Math.min(scaleX, scaleY, 0.6);
   }
-  
+
   canvas.style.width = state.canvas.width + 'px';
   canvas.style.height = state.canvas.height + 'px';
   canvas.style.transform = `scale(${state.zoom})`;
   canvas.dataset.width = state.canvas.width;
   canvas.dataset.height = state.canvas.height;
-  
+
   updateCanvasInfo();
 }
 
@@ -108,11 +108,11 @@ window.deleteWidget = deleteWidget;
 window.state = state;
 
 function updateCanvasInfo() {
-  document.getElementById('canvas-dimensions').textContent = 
+  document.getElementById('canvas-dimensions').textContent =
     `${state.canvas.width} × ${state.canvas.height}`;
-  document.getElementById('widget-count').textContent = 
+  document.getElementById('widget-count').textContent =
     `${state.widgets.length} widget${state.widgets.length !== 1 ? 's' : ''}`;
-  document.getElementById('zoom-level').textContent = 
+  document.getElementById('zoom-level').textContent =
     `${Math.round(state.zoom * 100)}%`;
 }
 
@@ -122,13 +122,13 @@ function updateCanvasInfo() {
 
 function initDragDrop() {
   const canvas = document.getElementById('canvas');
-  
+
   // Widget library items
   document.querySelectorAll('.widget-item').forEach(item => {
     item.addEventListener('dragstart', onDragStart);
     item.addEventListener('dragend', onDragEnd);
   });
-  
+
   // Canvas drop zone
   canvas.addEventListener('dragover', onDragOver);
   canvas.addEventListener('dragleave', onDragLeave);
@@ -160,15 +160,15 @@ function onDrop(e) {
   e.preventDefault();
   const canvas = document.getElementById('canvas');
   canvas.classList.remove('drag-over');
-  
+
   const widgetType = e.dataTransfer.getData('widget-type');
   if (!widgetType || !WIDGETS[widgetType]) return;
-  
+
   // Calculate drop position relative to canvas
   const canvasRect = canvas.getBoundingClientRect();
   const x = (e.clientX - canvasRect.left) / state.zoom;
   const y = (e.clientY - canvasRect.top) / state.zoom;
-  
+
   createWidget(widgetType, x, y);
 }
 
@@ -179,9 +179,9 @@ function onDrop(e) {
 function createWidget(type, x, y) {
   const template = WIDGETS[type];
   if (!template) return;
-  
+
   const id = `widget-${++state.idCounter}`;
-  
+
   // Center widget on drop point
   const widget = {
     id,
@@ -192,20 +192,20 @@ function createWidget(type, x, y) {
     height: template.defaultHeight,
     properties: { ...template.properties }
   };
-  
+
   // Snap to grid (20px)
   widget.x = Math.round(widget.x / 20) * 20;
   widget.y = Math.round(widget.y / 20) * 20;
-  
+
   // Keep in bounds
   widget.x = Math.min(widget.x, state.canvas.width - widget.width);
   widget.y = Math.min(widget.y, state.canvas.height - widget.height);
-  
+
   state.widgets.push(widget);
   renderWidget(widget);
   selectWidget(id);
   updateCanvasInfo();
-  
+
   // Show has-widgets state
   document.getElementById('canvas').classList.add('has-widgets');
 }
@@ -213,7 +213,7 @@ function createWidget(type, x, y) {
 function renderWidget(widget) {
   const template = WIDGETS[widget.type];
   const canvas = document.getElementById('canvas');
-  
+
   const el = document.createElement('div');
   el.className = 'placed-widget';
   el.id = widget.id;
@@ -221,34 +221,34 @@ function renderWidget(widget) {
   el.style.top = widget.y + 'px';
   el.style.width = widget.width + 'px';
   el.style.height = widget.height + 'px';
-  
+
   // Generate actual widget HTML for realistic preview
   const props = { ...widget.properties, id: 'preview-' + widget.id };
   const widgetContent = processWidgetHtml(template.generateHtml(props), widget.properties.showHeader);
-  
+
   el.innerHTML = `
     <div class="widget-render">${widgetContent}</div>
     <div class="resize-handle"></div>
   `;
-  
+
   // Click to select
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     selectWidget(widget.id);
   });
-  
+
   // Drag to move
   el.addEventListener('mousedown', (e) => {
     if (e.target.classList.contains('resize-handle')) return;
     startDragWidget(e, widget);
   });
-  
+
   // Resize handle
   el.querySelector('.resize-handle').addEventListener('mousedown', (e) => {
     e.stopPropagation();
     startResizeWidget(e, widget);
   });
-  
+
   canvas.appendChild(el);
 }
 
@@ -256,10 +256,10 @@ function renderWidgetPreview(widget) {
   const template = WIDGETS[widget.type];
   const el = document.getElementById(widget.id);
   if (!el) return;
-  
+
   const props = { ...widget.properties, id: 'preview-' + widget.id };
   const widgetContent = processWidgetHtml(template.generateHtml(props), widget.properties.showHeader);
-  
+
   const renderDiv = el.querySelector('.widget-render');
   if (renderDiv) {
     renderDiv.innerHTML = widgetContent;
@@ -271,9 +271,9 @@ function selectWidget(id) {
   document.querySelectorAll('.placed-widget.selected').forEach(el => {
     el.classList.remove('selected');
   });
-  
+
   state.selectedWidget = id ? state.widgets.find(w => w.id === id) : null;
-  
+
   if (state.selectedWidget) {
     document.getElementById(id).classList.add('selected');
     showProperties(state.selectedWidget);
@@ -285,12 +285,12 @@ function selectWidget(id) {
 function deleteWidget(id) {
   const idx = state.widgets.findIndex(w => w.id === id);
   if (idx === -1) return;
-  
+
   state.widgets.splice(idx, 1);
   document.getElementById(id)?.remove();
   selectWidget(null);
   updateCanvasInfo();
-  
+
   if (state.widgets.length === 0) {
     document.getElementById('canvas').classList.remove('has-widgets');
   }
@@ -302,35 +302,35 @@ function deleteWidget(id) {
 
 function startDragWidget(e, widget) {
   if (e.button !== 0) return;
-  
+
   const el = document.getElementById(widget.id);
   const startX = e.clientX;
   const startY = e.clientY;
   const origX = widget.x;
   const origY = widget.y;
-  
+
   function onMove(e) {
     const dx = (e.clientX - startX) / state.zoom;
     const dy = (e.clientY - startY) / state.zoom;
-    
+
     widget.x = Math.round((origX + dx) / 20) * 20;
     widget.y = Math.round((origY + dy) / 20) * 20;
-    
+
     // Keep in bounds
     widget.x = Math.max(0, Math.min(widget.x, state.canvas.width - widget.width));
     widget.y = Math.max(0, Math.min(widget.y, state.canvas.height - widget.height));
-    
+
     el.style.left = widget.x + 'px';
     el.style.top = widget.y + 'px';
-    
+
     updatePropertyInputs();
   }
-  
+
   function onUp() {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
   }
-  
+
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 }
@@ -341,33 +341,33 @@ function startResizeWidget(e, widget) {
   const startY = e.clientY;
   const origW = widget.width;
   const origH = widget.height;
-  
+
   function onMove(e) {
     const dw = (e.clientX - startX) / state.zoom;
     const dh = (e.clientY - startY) / state.zoom;
-    
+
     widget.width = Math.round((origW + dw) / 20) * 20;
     widget.height = Math.round((origH + dh) / 20) * 20;
-    
+
     // Minimum size
     widget.width = Math.max(100, widget.width);
     widget.height = Math.max(60, widget.height);
-    
+
     // Keep in bounds
     widget.width = Math.min(widget.width, state.canvas.width - widget.x);
     widget.height = Math.min(widget.height, state.canvas.height - widget.y);
-    
+
     el.style.width = widget.width + 'px';
     el.style.height = widget.height + 'px';
-    
+
     updatePropertyInputs();
   }
-  
+
   function onUp() {
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
   }
-  
+
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 }
@@ -381,25 +381,24 @@ function initProperties() {
   ['prop-x', 'prop-y', 'prop-width', 'prop-height'].forEach(id => {
     document.getElementById(id).addEventListener('change', onPropertyChange);
   });
-  
+
   // Title
   document.getElementById('prop-title').addEventListener('input', onPropertyChange);
-  
+
   // Location fields
   document.getElementById('prop-location').addEventListener('input', onPropertyChange);
   document.getElementById('prop-locations').addEventListener('input', onPropertyChange);
   document.getElementById('prop-units').addEventListener('change', onPropertyChange);
-  
+
   // API key and endpoint
   document.getElementById('prop-api-key').addEventListener('input', onPropertyChange);
   document.getElementById('prop-endpoint').addEventListener('input', onPropertyChange);
   document.getElementById('prop-refresh').addEventListener('change', onPropertyChange);
   document.getElementById('prop-timeformat').addEventListener('change', onPropertyChange);
-  document.getElementById('prop-timezones').addEventListener('input', onPropertyChange);
-  
+
   // Show header checkbox
   document.getElementById('prop-show-header').addEventListener('change', onPropertyChange);
-  
+
   // Delete button
   document.getElementById('btn-delete-widget').addEventListener('click', () => {
     if (state.selectedWidget) {
@@ -410,16 +409,16 @@ function initProperties() {
 
 function showProperties(widget) {
   const template = WIDGETS[widget.type];
-  
+
   document.querySelector('.no-selection').style.display = 'none';
   document.getElementById('properties-form').style.display = 'block';
-  
+
   document.getElementById('prop-type').value = template.name;
   document.getElementById('prop-title').value = widget.properties.title || '';
   document.getElementById('prop-show-header').checked = widget.properties.showHeader !== false; // default true
-  
+
   updatePropertyInputs();
-  
+
   // Hide all optional groups first
   document.getElementById('prop-api-group').style.display = 'none';
   document.getElementById('prop-endpoint-group').style.display = 'none';
@@ -427,51 +426,43 @@ function showProperties(widget) {
   document.getElementById('prop-locations-group').style.display = 'none';
   document.getElementById('prop-units-group').style.display = 'none';
   document.getElementById('prop-timeformat-group').style.display = 'none';
-  document.getElementById('prop-timezones-group').style.display = 'none';
-  
+
   // Show location field (single)
   if (widget.properties.location !== undefined) {
     document.getElementById('prop-location-group').style.display = 'block';
     document.getElementById('prop-location').value = widget.properties.location || '';
   }
-  
+
   // Show locations field (multi)
   if (widget.properties.locations !== undefined) {
     document.getElementById('prop-locations-group').style.display = 'block';
     document.getElementById('prop-locations').value = widget.properties.locations || '';
   }
-  
+
   // Show units field
   if (widget.properties.units !== undefined) {
     document.getElementById('prop-units-group').style.display = 'block';
     document.getElementById('prop-units').value = widget.properties.units || 'F';
   }
-  
+
   // Show time format field
   if (widget.properties.format24h !== undefined) {
     document.getElementById('prop-timeformat-group').style.display = 'block';
     document.getElementById('prop-timeformat').value = widget.properties.format24h ? '24h' : '12h';
   }
-  
-  // Show timezones field (for world clock)
-  if (widget.properties.timezones !== undefined) {
-    document.getElementById('prop-timezones-group').style.display = 'block';
-    // Convert comma-separated to newline-separated for display
-    document.getElementById('prop-timezones').value = (widget.properties.timezones || '').split(',').map(s => s.trim()).join('\n');
-  }
-  
+
   // Show API fields
   if (template.hasApiKey) {
     document.getElementById('prop-api-group').style.display = 'block';
     document.getElementById('prop-api-key').value = template.apiKeyName || '';
   }
-  
+
   // Show endpoint field
   if (widget.properties.endpoint !== undefined) {
     document.getElementById('prop-endpoint-group').style.display = 'block';
     document.getElementById('prop-endpoint').value = widget.properties.endpoint || '';
   }
-  
+
   document.getElementById('prop-refresh').value = widget.properties.refreshInterval || 60;
 }
 
@@ -482,7 +473,7 @@ function hideProperties() {
 
 function updatePropertyInputs() {
   if (!state.selectedWidget) return;
-  
+
   document.getElementById('prop-x').value = state.selectedWidget.x;
   document.getElementById('prop-y').value = state.selectedWidget.y;
   document.getElementById('prop-width').value = state.selectedWidget.width;
@@ -491,10 +482,10 @@ function updatePropertyInputs() {
 
 function onPropertyChange(e) {
   if (!state.selectedWidget) return;
-  
+
   const widget = state.selectedWidget;
   const el = document.getElementById(widget.id);
-  
+
   switch (e.target.id) {
     case 'prop-x':
       widget.x = parseInt(e.target.value) || 0;
@@ -531,10 +522,6 @@ function onPropertyChange(e) {
     case 'prop-timeformat':
       widget.properties.format24h = e.target.value === '24h';
       break;
-    case 'prop-timezones':
-      // Convert newline-separated to comma-separated for storage
-      widget.properties.timezones = e.target.value.split('\n').map(s => s.trim()).filter(s => s).join(',');
-      break;
     case 'prop-endpoint':
       widget.properties.endpoint = e.target.value;
       break;
@@ -559,14 +546,14 @@ function initControls() {
       document.getElementById('custom-width').style.display = 'none';
       document.getElementById('custom-x').style.display = 'none';
       document.getElementById('custom-height').style.display = 'none';
-      
+
       const [w, h] = e.target.value.split('x').map(Number);
       state.canvas.width = w;
       state.canvas.height = h;
       updateCanvasSize();
     }
   });
-  
+
   // Custom size inputs
   ['custom-width', 'custom-height'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
@@ -575,7 +562,7 @@ function initControls() {
       updateCanvasSize();
     });
   });
-  
+
   // Clear button
   document.getElementById('btn-clear').addEventListener('click', () => {
     if (confirm('Clear all widgets?')) {
@@ -586,25 +573,25 @@ function initControls() {
       document.getElementById('canvas').classList.remove('has-widgets');
     }
   });
-  
+
   // Preview button
   document.getElementById('btn-preview').addEventListener('click', showPreview);
-  
+
   // Export button
   document.getElementById('btn-export').addEventListener('click', exportDashboard);
-  
+
   // Close preview
   document.getElementById('close-preview').addEventListener('click', () => {
     document.getElementById('preview-modal').classList.remove('active');
   });
-  
+
   // Zoom controls - handled via inline onclick in HTML
-  
+
   // Keyboard shortcuts for zoom
   document.addEventListener('keydown', (e) => {
     // Check if not typing in an input
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
+
     if (e.key === '=' || e.key === '+') {
       e.preventDefault();
       zoomIn();
@@ -624,7 +611,7 @@ function initControls() {
       }
     }
   });
-  
+
   // Mouse wheel zoom (with Ctrl/Cmd)
   document.getElementById('canvas-wrapper').addEventListener('wheel', (e) => {
     if (e.ctrlKey || e.metaKey) {
@@ -645,20 +632,20 @@ function initControls() {
 function showPreview() {
   const css = generateDashboardCss();
   const js = generateDashboardJs();
-  
+
   const widgetHtml = state.widgets.map(widget => {
     const template = WIDGETS[widget.type];
     if (!template) return '';
-    
+
     const props = { ...widget.properties, id: widget.id };
     let html = processWidgetHtml(template.generateHtml(props), widget.properties.showHeader);
-    
+
     return `
       <div class="widget-container" style="position:absolute;left:${widget.x}px;top:${widget.y}px;width:${widget.width}px;height:${widget.height}px;">
         ${html}
       </div>`;
   }).join('\n');
-  
+
   const previewHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -674,7 +661,7 @@ function showPreview() {
   <script>${js}</script>
 </body>
 </html>`;
-  
+
   const frame = document.getElementById('preview-frame');
   frame.srcdoc = previewHtml;
   document.getElementById('preview-modal').classList.add('active');
@@ -688,7 +675,7 @@ async function exportDashboard() {
   const html = generateDashboardHtml();
   const css = generateDashboardCss();
   const js = generateDashboardJs();
-  
+
   // Create ZIP using JSZip (loaded dynamically)
   if (!window.JSZip) {
     const script = document.createElement('script');
@@ -696,15 +683,15 @@ async function exportDashboard() {
     document.head.appendChild(script);
     await new Promise(resolve => script.onload = resolve);
   }
-  
+
   const zip = new JSZip();
   zip.file('index.html', html);
   zip.file('css/style.css', css);
   zip.file('js/dashboard.js', js);
   zip.file('README.md', generateReadme());
-  
+
   const blob = await zip.generateAsync({ type: 'blob' });
-  
+
   // Download
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -718,17 +705,17 @@ function generateDashboardHtml() {
   const widgetHtml = state.widgets.map(widget => {
     const template = WIDGETS[widget.type];
     if (!template) return '';
-    
+
     const props = { ...widget.properties, id: widget.id };
     let html = processWidgetHtml(template.generateHtml(props), widget.properties.showHeader);
-    
+
     // Wrap in positioned container
     return `
       <div class="widget-container" style="position:absolute;left:${widget.x}px;top:${widget.y}px;width:${widget.width}px;height:${widget.height}px;">
         ${html}
       </div>`;
   }).join('\n');
-  
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1121,11 +1108,11 @@ function generateDashboardJs() {
   const widgetJs = state.widgets.map(widget => {
     const template = WIDGETS[widget.type];
     if (!template || !template.generateJs) return '';
-    
+
     const props = { ...widget.properties, id: widget.id };
     return template.generateJs(props);
   }).join('\n\n');
-  
+
   return `/**
  * OpenClaw Dashboard - Generated JavaScript
  * Replace YOUR_*_API_KEY placeholders with your actual API keys
@@ -1149,7 +1136,7 @@ function generateReadme() {
       }
     }
   });
-  
+
   return `# OpenClaw Dashboard
 
 This dashboard was generated with the OpenClaw Dashboard Builder.
