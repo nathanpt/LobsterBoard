@@ -399,6 +399,32 @@ function initProperties() {
   // Show header checkbox
   document.getElementById('prop-show-header').addEventListener('change', onPropertyChange);
 
+  // Countdown-specific fields
+  document.getElementById('prop-targetdate').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-show-hours').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-show-minutes').addEventListener('change', onPropertyChange);
+
+  // Pomodoro-specific fields
+  document.getElementById('prop-work-minutes').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-break-minutes').addEventListener('change', onPropertyChange);
+
+  // Image embed fields
+  document.getElementById('prop-imagepath').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-imagefile').addEventListener('change', onImageFileSelect);
+  document.getElementById('prop-imageurl').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-imagelist-file').addEventListener('change', onRandomImageFilesSelect);
+
+  // Quick links
+  document.getElementById('prop-link-add').addEventListener('click', onAddQuickLink);
+
+  // Iframe embed
+  document.getElementById('prop-embedurl').addEventListener('input', onPropertyChange);
+
+  // Release widget
+  document.getElementById('prop-repo').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-currentversion').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-openclawurl').addEventListener('input', onPropertyChange);
+
   // Delete button
   document.getElementById('btn-delete-widget').addEventListener('click', () => {
     if (state.selectedWidget) {
@@ -426,6 +452,17 @@ function showProperties(widget) {
   document.getElementById('prop-locations-group').style.display = 'none';
   document.getElementById('prop-units-group').style.display = 'none';
   document.getElementById('prop-timeformat-group').style.display = 'none';
+  document.getElementById('prop-targetdate-group').style.display = 'none';
+  document.getElementById('prop-countdown-options-group').style.display = 'none';
+  document.getElementById('prop-pomodoro-group').style.display = 'none';
+  document.getElementById('prop-imagepath-group').style.display = 'none';
+  document.getElementById('prop-imageurl-group').style.display = 'none';
+  document.getElementById('prop-imagelist-group').style.display = 'none';
+  document.getElementById('prop-quicklinks-group').style.display = 'none';
+  document.getElementById('prop-embedurl-group').style.display = 'none';
+  document.getElementById('prop-release-group').style.display = 'none';
+  document.getElementById('prop-openclawurl-group').style.display = 'none';
+  document.getElementById('prop-title-hint').style.display = 'none';
 
   // Show location field (single)
   if (widget.properties.location !== undefined) {
@@ -451,6 +488,80 @@ function showProperties(widget) {
     document.getElementById('prop-timeformat').value = widget.properties.format24h ? '24h' : '12h';
   }
 
+  // Show countdown-specific fields
+  if (widget.properties.targetDate !== undefined) {
+    document.getElementById('prop-targetdate-group').style.display = 'block';
+    document.getElementById('prop-targetdate').value = widget.properties.targetDate || '';
+    document.getElementById('prop-countdown-options-group').style.display = 'block';
+    document.getElementById('prop-show-hours').checked = widget.properties.showHours || false;
+    document.getElementById('prop-show-minutes').checked = widget.properties.showMinutes || false;
+    // Show title hint for countdown
+    document.getElementById('prop-title-hint').textContent = 'Name what you\'re counting down to';
+    document.getElementById('prop-title-hint').style.display = 'block';
+  }
+
+  // Show pomodoro-specific fields
+  if (widget.properties.workMinutes !== undefined) {
+    document.getElementById('prop-pomodoro-group').style.display = 'block';
+    document.getElementById('prop-work-minutes').value = widget.properties.workMinutes || 25;
+    document.getElementById('prop-break-minutes').value = widget.properties.breakMinutes || 5;
+  }
+
+  // Show local image fields
+  if (widget.properties.imagePath !== undefined) {
+    document.getElementById('prop-imagepath-group').style.display = 'block';
+    const pathInput = document.getElementById('prop-imagepath');
+    const pathHint = document.querySelector('#prop-imagepath-group small');
+    // If image is embedded (base64), hide the path input
+    if (widget.properties.imagePath && widget.properties.imagePath.startsWith('data:')) {
+      pathInput.style.display = 'none';
+      pathHint.style.display = 'none';
+    } else {
+      pathInput.style.display = 'block';
+      pathInput.value = widget.properties.imagePath || '';
+      pathHint.style.display = 'block';
+    }
+  }
+
+  // Show web image fields
+  if (widget.properties.imageUrl !== undefined) {
+    document.getElementById('prop-imageurl-group').style.display = 'block';
+    document.getElementById('prop-imageurl').value = widget.properties.imageUrl || '';
+  }
+
+  // Show random image fields
+  if (widget.properties.images !== undefined || widget.type === 'image-random') {
+    document.getElementById('prop-imagelist-group').style.display = 'block';
+    if (!widget.properties.images) widget.properties.images = [];
+    renderRandomImageList();
+  }
+
+  // Show quick links fields
+  if (widget.type === 'quick-links') {
+    document.getElementById('prop-quicklinks-group').style.display = 'block';
+    if (!widget.properties.links) widget.properties.links = [];
+    renderQuickLinksList();
+  }
+
+  // Show iframe embed fields
+  if (widget.properties.embedUrl !== undefined) {
+    document.getElementById('prop-embedurl-group').style.display = 'block';
+    document.getElementById('prop-embedurl').value = widget.properties.embedUrl || '';
+  }
+
+  // Show release widget fields
+  if (widget.properties.repo !== undefined) {
+    document.getElementById('prop-release-group').style.display = 'block';
+    document.getElementById('prop-repo').value = widget.properties.repo || '';
+    document.getElementById('prop-currentversion').value = widget.properties.currentVersion || '';
+  }
+
+  // Show OpenClaw URL field
+  if (widget.properties.openclawUrl !== undefined) {
+    document.getElementById('prop-openclawurl-group').style.display = 'block';
+    document.getElementById('prop-openclawurl').value = widget.properties.openclawUrl || '';
+  }
+
   // Show API fields
   if (template.hasApiKey) {
     document.getElementById('prop-api-group').style.display = 'block';
@@ -464,6 +575,15 @@ function showProperties(widget) {
   }
 
   document.getElementById('prop-refresh').value = widget.properties.refreshInterval || 60;
+
+  // Show widget description
+  const descEl = document.getElementById('prop-description');
+  if (template.description) {
+    descEl.textContent = template.description;
+    document.getElementById('prop-description-group').style.display = 'block';
+  } else {
+    document.getElementById('prop-description-group').style.display = 'none';
+  }
 }
 
 function hideProperties() {
@@ -479,6 +599,136 @@ function updatePropertyInputs() {
   document.getElementById('prop-width').value = state.selectedWidget.width;
   document.getElementById('prop-height').value = state.selectedWidget.height;
 }
+
+function onImageFileSelect(e) {
+  if (!state.selectedWidget) return;
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    state.selectedWidget.properties.imagePath = event.target.result;
+    // Hide the path input after file is selected
+    document.getElementById('prop-imagepath').style.display = 'none';
+    document.querySelector('#prop-imagepath-group small').style.display = 'none';
+    renderWidgetPreview(state.selectedWidget);
+  };
+  reader.readAsDataURL(file);
+}
+
+function onRandomImageFilesSelect(e) {
+  if (!state.selectedWidget) return;
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  
+  // Initialize images array if needed
+  if (!state.selectedWidget.properties.images) {
+    state.selectedWidget.properties.images = [];
+  }
+  
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      state.selectedWidget.properties.images.push({
+        name: file.name,
+        data: event.target.result
+      });
+      loaded++;
+      if (loaded === files.length) {
+        renderRandomImageList();
+        // Clear file input
+        document.getElementById('prop-imagelist-file').value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderRandomImageList() {
+  if (!state.selectedWidget) return;
+  const container = document.getElementById('prop-imagelist-items');
+  const images = state.selectedWidget.properties.images || [];
+  
+  if (images.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px 0;">No images added yet</div>';
+    return;
+  }
+  
+  container.innerHTML = images.map((img, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+      <img src="${img.data}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;">
+      <span style="flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${img.name}</span>
+      <button onclick="removeRandomImage(${i})" style="background:none;border:none;color:var(--accent-red);cursor:pointer;font-size:14px;" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+window.removeRandomImage = function(index) {
+  if (!state.selectedWidget || !state.selectedWidget.properties.images) return;
+  state.selectedWidget.properties.images.splice(index, 1);
+  renderRandomImageList();
+};
+
+function onAddQuickLink() {
+  if (!state.selectedWidget) return;
+  const nameInput = document.getElementById('prop-link-name');
+  const urlInput = document.getElementById('prop-link-url');
+  
+  const name = nameInput.value.trim();
+  let url = urlInput.value.trim();
+  
+  if (!name || !url) return;
+  
+  // Add https:// if missing
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  
+  if (!state.selectedWidget.properties.links) {
+    state.selectedWidget.properties.links = [];
+  }
+  
+  state.selectedWidget.properties.links.push({ name, url });
+  renderQuickLinksList();
+  renderWidgetPreview(state.selectedWidget);
+  
+  // Clear inputs
+  nameInput.value = '';
+  urlInput.value = '';
+  nameInput.focus();
+}
+
+function renderQuickLinksList() {
+  if (!state.selectedWidget) return;
+  const container = document.getElementById('prop-quicklinks-items');
+  const links = state.selectedWidget.properties.links || [];
+  
+  if (links.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px 0;">No links added yet</div>';
+    return;
+  }
+  
+  container.innerHTML = links.map((link, i) => {
+    let domain = '';
+    try { domain = new URL(link.url).hostname; } catch(e) {}
+    const favicon = domain ? 'https://www.google.com/s2/favicons?sz=16&domain=' + domain : '';
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);">
+      ${favicon ? `<img src="${favicon}" style="width:16px;height:16px;">` : ''}
+      <span style="flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${link.name}</span>
+      <button onclick="removeQuickLink(${i})" style="background:none;border:none;color:var(--accent-red);cursor:pointer;font-size:14px;" title="Remove">×</button>
+    </div>
+  `;
+  }).join('');
+}
+
+window.removeQuickLink = function(index) {
+  if (!state.selectedWidget || !state.selectedWidget.properties.links) return;
+  state.selectedWidget.properties.links.splice(index, 1);
+  renderQuickLinksList();
+  renderWidgetPreview(state.selectedWidget);
+};
 
 function onPropertyChange(e) {
   if (!state.selectedWidget) return;
@@ -505,6 +755,7 @@ function onPropertyChange(e) {
       break;
     case 'prop-title':
       widget.properties.title = e.target.value;
+      renderWidgetPreview(widget);
       break;
     case 'prop-show-header':
       widget.properties.showHeader = e.target.checked;
@@ -521,6 +772,44 @@ function onPropertyChange(e) {
       break;
     case 'prop-timeformat':
       widget.properties.format24h = e.target.value === '24h';
+      break;
+    case 'prop-targetdate':
+      widget.properties.targetDate = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-show-hours':
+      widget.properties.showHours = e.target.checked;
+      break;
+    case 'prop-show-minutes':
+      widget.properties.showMinutes = e.target.checked;
+      break;
+    case 'prop-work-minutes':
+      widget.properties.workMinutes = parseInt(e.target.value) || 25;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-break-minutes':
+      widget.properties.breakMinutes = parseInt(e.target.value) || 5;
+      break;
+    case 'prop-imagepath':
+      widget.properties.imagePath = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-imageurl':
+      widget.properties.imageUrl = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-embedurl':
+      widget.properties.embedUrl = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-repo':
+      widget.properties.repo = e.target.value;
+      break;
+    case 'prop-currentversion':
+      widget.properties.currentVersion = e.target.value;
+      break;
+    case 'prop-openclawurl':
+      widget.properties.openclawUrl = e.target.value;
       break;
     case 'prop-endpoint':
       widget.properties.endpoint = e.target.value;
@@ -689,6 +978,7 @@ async function exportDashboard() {
   zip.file('css/style.css', css);
   zip.file('js/dashboard.js', js);
   zip.file('README.md', generateReadme());
+  zip.file('server.js', generateServerJs());
 
   const blob = await zip.generateAsync({ type: 'blob' });
 
@@ -1112,6 +1402,29 @@ body {
   color: var(--text-primary);
 }
 
+/* Pomodoro Button */
+.pomo-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pomo-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.pomo-btn:active {
+  background: var(--bg-secondary);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -1149,8 +1462,120 @@ ${widgetJs}
 `;
 }
 
+function generateServerJs() {
+  return `/**
+ * LobsterBoard Dashboard Server
+ * 
+ * A minimal server that:
+ * - Serves your dashboard static files
+ * - Proxies allowed OpenClaw API endpoints
+ * 
+ * Usage: node server.js
+ * 
+ * Environment variables:
+ *   PORT          - Server port (default: 8080)
+ *   HOST          - Bind address (default: 127.0.0.1 for security)
+ *   OPENCLAW_URL  - OpenClaw gateway URL (default: http://localhost:11470)
+ * 
+ * Security: By default binds to localhost only. To expose on network:
+ *   HOST=0.0.0.0 node server.js
+ *   ⚠️  Only do this on trusted networks!
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const PORT = process.env.PORT || 8080;
+const HOST = process.env.HOST || '127.0.0.1';
+const OPENCLAW_URL = (process.env.OPENCLAW_URL || 'http://localhost:18789').replace(/\\/$/, '');
+
+const ALLOWED_API_PATHS = ['/api/status', '/api/health'];
+
+const MIME_TYPES = {
+  '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
+  '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon'
+};
+
+async function proxyToOpenClaw(reqPath, res) {
+  try {
+    const response = await fetch(OPENCLAW_URL + reqPath);
+    const data = await response.text();
+    res.writeHead(response.status, {
+      'Content-Type': response.headers.get('content-type') || 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(data);
+  } catch (error) {
+    res.writeHead(502, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Failed to reach OpenClaw' }));
+  }
+}
+
+function serveStatic(filePath, res) {
+  if (filePath === '/') filePath = '/index.html';
+  const fullPath = path.join(__dirname, filePath);
+  const ext = path.extname(fullPath).toLowerCase();
+  
+  fs.readFile(fullPath, (err, data) => {
+    if (err) {
+      res.writeHead(err.code === 'ENOENT' ? 404 : 500);
+      res.end(err.code === 'ENOENT' ? 'Not Found' : 'Server Error');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+    res.end(data);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const pathname = new URL(req.url, 'http://' + req.headers.host).pathname;
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    res.end();
+    return;
+  }
+  
+  if (pathname.startsWith('/api/')) {
+    if (ALLOWED_API_PATHS.includes(pathname)) {
+      await proxyToOpenClaw(pathname, res);
+    } else {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'API endpoint not allowed' }));
+    }
+    return;
+  }
+  
+  serveStatic(pathname, res);
+});
+
+server.listen(PORT, HOST, () => {
+  console.log(\`
+🦞 LobsterBoard Dashboard Server
+
+   Dashboard: http://\${HOST}:\${PORT}
+   OpenClaw:  \${OPENCLAW_URL}
+   
+\${HOST === '127.0.0.1' ? '   ✓ Bound to localhost (secure)' : '   ⚠️  Exposed to network'}
+
+   Press Ctrl+C to stop
+\`);
+});
+`;
+}
+
 function generateReadme() {
   const apiKeys = [];
+  const needsOpenClaw = state.widgets.some(w => 
+    ['openclaw-release', 'auth-status', 'activity-list', 'cron-jobs', 'system-log', 'session-count', 'token-gauge'].includes(w.type)
+  );
+  
   state.widgets.forEach(widget => {
     const template = WIDGETS[widget.type];
     if (template?.hasApiKey && template.apiKeyName) {
@@ -1160,26 +1585,114 @@ function generateReadme() {
     }
   });
 
-  return `# OpenClaw Dashboard
+  return `# LobsterBoard Dashboard
 
-This dashboard was generated with the OpenClaw Dashboard Builder.
+This dashboard was generated with LobsterBoard Dashboard Builder.
 
-## Setup
+## ⚠️ Security Notice
 
-1. Extract all files to a folder
-2. Open \`js/dashboard.js\` and replace the API key placeholders:
-${apiKeys.map(key => `   - \`YOUR_${key}\``).join('\n') || '   - (No API keys required)'}
-3. Serve the folder with any static file server, or just open \`index.html\`
+**Never blindly trust scripts from the internet.**
+
+Before running \`server.js\`, we recommend reviewing it for security:
+
+\`\`\`
+Hey [Your AI Assistant], please review the server.js file in this folder 
+and check for any security concerns, suspicious code, or potential issues.
+\`\`\`
+
+The server.js included here is minimal and only proxies specific read-only 
+OpenClaw endpoints (\`/api/status\`, \`/api/health\`). It binds to localhost 
+by default for security. But always verify for yourself!
+
+---
+
+## Quick Start
+
+${needsOpenClaw ? `### Running with OpenClaw widgets
+
+Your dashboard includes widgets that connect to OpenClaw. You'll need to run 
+the included server to proxy API requests.
+
+\`\`\`bash
+# Make sure OpenClaw is running, then:
+node server.js
+\`\`\`
+
+Open http://localhost:8080 in your browser.
+
+### Configuration
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| \`PORT\` | 8080 | Server port |
+| \`HOST\` | 127.0.0.1 | Bind address (localhost = secure) |
+| \`OPENCLAW_URL\` | http://localhost:18789 | Your OpenClaw gateway |
+
+> 💡 **Changed your OpenClaw port?** If you configured OpenClaw to run on a 
+> different port (check \`~/.openclaw/openclaw.json\`), update \`OPENCLAW_URL\` 
+> to match. Example: \`OPENCLAW_URL=http://localhost:12345 node server.js\`
+
+**Examples:**
+\`\`\`bash
+# Custom port
+PORT=3000 node server.js
+
+# Custom OpenClaw location
+OPENCLAW_URL=http://192.168.1.100:11470 node server.js
+
+# Expose to network (trusted networks only!)
+HOST=0.0.0.0 node server.js
+\`\`\`
+
+### Set It and Forget It (Auto-Start)
+
+To have your dashboard start automatically on boot:
+
+\`\`\`bash
+# Install pm2 (process manager)
+npm install -g pm2
+
+# Start the dashboard
+pm2 start server.js --name my-dashboard
+
+# Save the process list
+pm2 save
+
+# Set up auto-start on boot
+pm2 startup
+# (follow the instructions it prints)
+\`\`\`
+
+**Useful pm2 commands:**
+- \`pm2 status\` - Check if running
+- \`pm2 logs my-dashboard\` - View logs
+- \`pm2 restart my-dashboard\` - Restart
+- \`pm2 stop my-dashboard\` - Stop
+
+### Without server (static only)
+` : ''}
+Open \`index.html\` directly, or serve with any static file server.
+Note: OpenClaw widgets won't work without the server proxy.
 
 ## Files
 
-- \`index.html\` - Main dashboard page
-- \`css/style.css\` - Styles
-- \`js/dashboard.js\` - Widget logic and API calls
+| File | Description |
+|------|-------------|
+| \`index.html\` | Dashboard page |
+| \`css/style.css\` | Styles |
+| \`js/dashboard.js\` | Widget logic |
+| \`server.js\` | Server with OpenClaw API proxy |
 
+${apiKeys.length > 0 ? `## API Keys
+
+Edit \`js/dashboard.js\` and replace these placeholders:
+${apiKeys.map(key => `- \`YOUR_${key}\``).join('\n')}
+` : ''}
 ## Customization
 
-Edit the CSS variables in \`style.css\` to change colors:
+Edit CSS variables in \`style.css\`:
 
 \`\`\`css
 :root {
@@ -1189,10 +1702,12 @@ Edit the CSS variables in \`style.css\` to change colors:
 }
 \`\`\`
 
-## Learn More
+## Links
 
+- LobsterBoard Builder: https://github.com/curbob/LobsterBoard
 - OpenClaw: https://github.com/openclaw/openclaw
-- Dashboard Builder: https://clawhub.com
+
+---
 
 Generated: ${new Date().toISOString()}
 `;

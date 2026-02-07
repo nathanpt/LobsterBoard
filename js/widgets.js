@@ -12,6 +12,7 @@ const WIDGETS = {
     name: 'Local Weather',
     icon: '🌡️',
     category: 'small',
+    description: 'Shows current weather for a single location using wttr.in (no API key needed).',
     defaultWidth: 200,
     defaultHeight: 120,
     hasApiKey: false,
@@ -72,6 +73,7 @@ const WIDGETS = {
     name: 'World Weather',
     icon: '🌍',
     category: 'large',
+    description: 'Shows weather for multiple locations side-by-side. Separate cities with semicolons.',
     defaultWidth: 350,
     defaultHeight: 200,
     hasApiKey: false,
@@ -136,12 +138,13 @@ const WIDGETS = {
     name: 'Auth Status',
     icon: '🔐',
     category: 'small',
+    description: 'Shows if OpenClaw is using Anthropic Max subscription (green) or API key fallback (yellow).',
     defaultWidth: 180,
     defaultHeight: 100,
     hasApiKey: true,
     apiKeyName: 'OPENCLAW_API',
     properties: {
-      title: 'Auth',
+      title: 'Auth Type',
       endpoint: 'http://localhost:18789/api/status',
       refreshInterval: 30
     },
@@ -151,11 +154,13 @@ const WIDGETS = {
       <div style="font-size:11px;color:#8b949e;">Auth</div>
     </div>`,
     generateHtml: (props) => `
-      <div class="kpi-card kpi-sm" id="widget-${props.id}">
-        <div class="kpi-indicator" id="${props.id}-dot"></div>
-        <div class="kpi-data">
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🔐 ${props.title || 'Auth Type'}</span>
+        </div>
+        <div class="dash-card-body" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+          <div class="kpi-indicator" id="${props.id}-dot"></div>
           <div class="kpi-value" id="${props.id}-value">—</div>
-          <div class="kpi-label">Auth</div>
         </div>
       </div>`,
     generateJs: (props) => `
@@ -166,7 +171,7 @@ const WIDGETS = {
           const data = await res.json();
           const dot = document.getElementById('${props.id}-dot');
           const val = document.getElementById('${props.id}-value');
-          val.textContent = data.authMode || 'Unknown';
+          val.textContent = data.authMode === 'oauth' ? 'Subscription' : 'API';
           dot.className = 'kpi-indicator ' + (data.authMode === 'oauth' ? 'green' : 'yellow');
         } catch (e) {
           document.getElementById('${props.id}-value').textContent = 'Error';
@@ -178,15 +183,16 @@ const WIDGETS = {
   },
 
   'sleep-ring': {
-    name: 'Sleep Ring',
+    name: 'Sleep Score',
     icon: '😴',
     category: 'small',
+    description: 'Displays sleep data from a configured health API endpoint.',
     defaultWidth: 160,
     defaultHeight: 100,
     hasApiKey: true,
     apiKeyName: 'GARMIN_TOKEN',
     properties: {
-      title: 'Sleep',
+      title: 'Sleep Score',
       refreshInterval: 300
     },
     preview: `<div style="text-align:center;padding:8px;">
@@ -223,39 +229,134 @@ const WIDGETS = {
     `
   },
 
+  'openclaw-release': {
+    name: 'OpenClaw Release',
+    icon: '🦞',
+    category: 'small',
+    description: 'Auto-detects running OpenClaw version and compares to latest GitHub release.',
+    defaultWidth: 200,
+    defaultHeight: 120,
+    hasApiKey: false,
+    properties: {
+      title: 'OpenClaw',
+      openclawUrl: 'http://localhost:18789',
+      refreshInterval: 3600
+    },
+    preview: `<div style="text-align:center;padding:8px;">
+      <div style="font-size:13px;">v2026.2.3</div>
+      <div style="font-size:11px;color:#3fb950;">✓ Up to date</div>
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🦞 ${props.title || 'OpenClaw'}</span>
+        </div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div class="kpi-value" id="${props.id}-version" style="font-size:16px;">—</div>
+          <div class="kpi-label" id="${props.id}-status">Checking...</div>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      // OpenClaw Release Widget: ${props.id}
+      async function update_${props.id.replace(/-/g, '_')}() {
+        const versionEl = document.getElementById('${props.id}-version');
+        const statusEl = document.getElementById('${props.id}-status');
+        const baseUrl = '${props.openclawUrl || 'http://localhost:11470'}'.replace(/\\/$/, '');
+        
+        try {
+          // Get current running version from OpenClaw API
+          const statusRes = await fetch(baseUrl + '/api/status');
+          const statusData = await statusRes.json();
+          const currentVersion = (statusData.version || '').replace(/^v/, '');
+          
+          // Get latest release from GitHub
+          const ghRes = await fetch('https://api.github.com/repos/openclaw/openclaw/releases/latest');
+          const ghData = await ghRes.json();
+          const latestVersion = (ghData.tag_name || '').replace(/^v/, '');
+          
+          if (!currentVersion) {
+            versionEl.textContent = 'v' + latestVersion;
+            statusEl.textContent = 'Latest release';
+          } else if (currentVersion === latestVersion) {
+            versionEl.textContent = 'v' + currentVersion;
+            versionEl.style.color = 'var(--accent-green)';
+            statusEl.innerHTML = '✓ Up to date';
+            statusEl.style.color = 'var(--accent-green)';
+          } else {
+            versionEl.textContent = 'v' + latestVersion + ' available';
+            versionEl.style.color = 'var(--accent-blue)';
+            statusEl.innerHTML = '⬆ Running v' + currentVersion;
+            statusEl.style.color = 'var(--accent-blue)';
+          }
+        } catch (e) {
+          versionEl.textContent = '—';
+          statusEl.innerHTML = '<span style="font-size:10px;">CORS error - serve from same origin</span>';
+          console.error('OpenClaw Release widget: CORS error. Serve dashboard from OpenClaw or configure CORS.', e);
+        }
+      }
+      update_${props.id.replace(/-/g, '_')}();
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 3600) * 1000});
+    `
+  },
+
   'release': {
     name: 'Release',
     icon: '📦',
     category: 'small',
-    defaultWidth: 180,
-    defaultHeight: 100,
+    description: 'Compares your current version of any software to its latest GitHub release.',
+    defaultWidth: 200,
+    defaultHeight: 120,
     hasApiKey: false,
     properties: {
       title: 'Release',
       repo: 'openclaw/openclaw',
+      currentVersion: '',
       refreshInterval: 3600
     },
     preview: `<div style="text-align:center;padding:8px;">
       <div style="font-size:13px;">v1.2.3</div>
-      <div style="font-size:11px;color:#8b949e;">Latest Release</div>
+      <div style="font-size:11px;color:#8b949e;">Up to date</div>
     </div>`,
     generateHtml: (props) => `
-      <div class="kpi-card kpi-sm kpi-release" id="widget-${props.id}">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-data">
-          <div class="kpi-value" id="${props.id}-version" style="font-size:14px;">—</div>
-          <div class="kpi-label">Release</div>
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">📦 ${props.title || 'Release'}</span>
+        </div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div class="kpi-value" id="${props.id}-version" style="font-size:16px;">—</div>
+          <div class="kpi-label" id="${props.id}-status">Checking...</div>
         </div>
       </div>`,
     generateJs: (props) => `
       // Release Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
+        const currentVersion = '${props.currentVersion || ''}'.replace(/^v/, '');
+        const versionEl = document.getElementById('${props.id}-version');
+        const statusEl = document.getElementById('${props.id}-status');
+        
         try {
           const res = await fetch('https://api.github.com/repos/${props.repo || 'openclaw/openclaw'}/releases/latest');
           const data = await res.json();
-          document.getElementById('${props.id}-version').textContent = data.tag_name || 'Unknown';
+          const latestVersion = (data.tag_name || '').replace(/^v/, '');
+          
+          if (!currentVersion) {
+            versionEl.textContent = 'v' + latestVersion;
+            statusEl.textContent = 'Latest release';
+            versionEl.style.color = 'var(--text-primary)';
+          } else if (currentVersion === latestVersion) {
+            versionEl.textContent = 'v' + latestVersion;
+            versionEl.style.color = 'var(--accent-green)';
+            statusEl.innerHTML = '✓ Up to date';
+            statusEl.style.color = 'var(--accent-green)';
+          } else {
+            versionEl.textContent = 'v' + latestVersion;
+            versionEl.style.color = 'var(--accent-blue)';
+            statusEl.innerHTML = '⬆ Update available (v' + currentVersion + ')';
+            statusEl.style.color = 'var(--accent-blue)';
+          }
         } catch (e) {
-          document.getElementById('${props.id}-version').textContent = 'Error';
+          versionEl.textContent = 'Error';
+          statusEl.textContent = 'Failed to check';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
@@ -266,7 +367,9 @@ const WIDGETS = {
   'clock': {
     name: 'Clock',
     icon: '🕐',
+    description: 'Simple digital clock. Supports 12h or 24h format.',
     category: 'small',
+    description: 'Simple digital clock. Supports 12h or 24h format.',
     defaultWidth: 200,
     defaultHeight: 120,
     hasApiKey: false,
@@ -304,39 +407,6 @@ const WIDGETS = {
     `
   },
 
-  'stat-card': {
-    name: 'Stat Card',
-    icon: '📊',
-    category: 'small',
-    defaultWidth: 180,
-    defaultHeight: 120,
-    hasApiKey: false,
-    properties: {
-      title: 'Stat',
-      value: '42',
-      label: 'Custom Stat',
-      color: 'blue'
-    },
-    preview: `<div style="text-align:center;padding:8px;">
-      <div style="font-size:24px;color:#58a6ff;">42</div>
-      <div style="font-size:11px;color:#8b949e;">Custom Stat</div>
-    </div>`,
-    generateHtml: (props) => `
-      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
-        <div class="dash-card-head">
-          <span class="dash-card-title">📊 ${props.title || 'Stat'}</span>
-        </div>
-        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value ${props.color || 'blue'}" id="${props.id}-value">${props.value || '—'}</div>
-          <div class="kpi-label">${props.label || 'Stat'}</div>
-        </div>
-      </div>`,
-    generateJs: (props) => `
-      // Stat Card Widget: ${props.id}
-      // This is a static display widget - update via your own logic
-    `
-  },
-
   // ─────────────────────────────────────────────
   // LARGE CARDS (Content)
   // ─────────────────────────────────────────────
@@ -345,6 +415,7 @@ const WIDGETS = {
     name: 'Activity List',
     icon: '📋',
     category: 'large',
+    description: 'Shows recent OpenClaw activity from /api/activity endpoint.',
     defaultWidth: 400,
     defaultHeight: 300,
     hasApiKey: true,
@@ -398,6 +469,7 @@ const WIDGETS = {
     name: 'Cron Jobs',
     icon: '⏰',
     category: 'large',
+    description: 'Lists scheduled cron jobs from OpenClaw /api/cron endpoint.',
     defaultWidth: 400,
     defaultHeight: 250,
     hasApiKey: true,
@@ -448,6 +520,7 @@ const WIDGETS = {
     name: 'System Log',
     icon: '🔧',
     category: 'large',
+    description: 'Shows recent system logs from OpenClaw /api/logs endpoint.',
     defaultWidth: 500,
     defaultHeight: 400,
     hasApiKey: true,
@@ -503,6 +576,7 @@ const WIDGETS = {
     name: 'Calendar',
     icon: '📅',
     category: 'large',
+    description: 'Displays upcoming calendar events. Requires calendar API endpoint.',
     defaultWidth: 400,
     defaultHeight: 300,
     hasApiKey: true,
@@ -544,6 +618,7 @@ const WIDGETS = {
     name: 'Notes',
     icon: '📝',
     category: 'large',
+    description: 'Simple note-taking widget. Requires storage backend.',
     defaultWidth: 350,
     defaultHeight: 250,
     hasApiKey: false,
@@ -577,6 +652,7 @@ const WIDGETS = {
     name: 'Top Nav Bar',
     icon: '🔝',
     category: 'bar',
+    description: 'Navigation bar with clock, weather, and system stats.',
     defaultWidth: 1920,
     defaultHeight: 48,
     hasApiKey: false,
@@ -614,6 +690,7 @@ const WIDGETS = {
     name: 'News Ticker',
     icon: '📰',
     category: 'bar',
+    description: 'Scrolling news headlines. Requires NewsAPI key.',
     defaultWidth: 1920,
     defaultHeight: 40,
     hasApiKey: true,
@@ -660,6 +737,7 @@ const WIDGETS = {
     name: 'Claude Usage',
     icon: '🟣',
     category: 'small',
+    description: 'Shows Anthropic Claude API usage stats. Requires usage API proxy.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: true,
@@ -707,6 +785,7 @@ const WIDGETS = {
     name: 'GPT Usage',
     icon: '🟢',
     category: 'small',
+    description: 'Shows OpenAI GPT API usage stats. Requires usage API proxy.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: true,
@@ -752,6 +831,7 @@ const WIDGETS = {
     name: 'Gemini Usage',
     icon: '🔵',
     category: 'small',
+    description: 'Shows Google Gemini API usage stats. Requires usage API proxy.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: true,
@@ -797,6 +877,7 @@ const WIDGETS = {
     name: 'AI Usage (All)',
     icon: '🤖',
     category: 'large',
+    description: 'Combined view of Claude, GPT, and Gemini usage in one widget.',
     defaultWidth: 400,
     defaultHeight: 280,
     hasApiKey: true,
@@ -860,6 +941,7 @@ const WIDGETS = {
     name: 'AI Cost Tracker',
     icon: '💰',
     category: 'small',
+    description: 'Tracks total AI API spending across providers.',
     defaultWidth: 200,
     defaultHeight: 100,
     hasApiKey: true,
@@ -902,6 +984,7 @@ const WIDGETS = {
     name: 'API Status',
     icon: '🔄',
     category: 'large',
+    description: 'Shows health status of multiple API endpoints with colored indicators.',
     defaultWidth: 350,
     defaultHeight: 200,
     hasApiKey: false,
@@ -961,6 +1044,7 @@ const WIDGETS = {
     name: 'Active Sessions',
     icon: '💬',
     category: 'small',
+    description: 'Shows count of active OpenClaw sessions.',
     defaultWidth: 160,
     defaultHeight: 100,
     hasApiKey: true,
@@ -1002,6 +1086,7 @@ const WIDGETS = {
     name: 'Token Gauge',
     icon: '📊',
     category: 'small',
+    description: 'Visual gauge showing token usage from OpenClaw.',
     defaultWidth: 180,
     defaultHeight: 120,
     hasApiKey: true,
@@ -1051,6 +1136,7 @@ const WIDGETS = {
     name: 'CPU / Memory',
     icon: '💻',
     category: 'small',
+    description: 'Shows CPU and memory usage. Requires system stats API.',
     defaultWidth: 200,
     defaultHeight: 120,
     hasApiKey: false,
@@ -1089,6 +1175,7 @@ const WIDGETS = {
     name: 'Disk Usage',
     icon: '💾',
     category: 'small',
+    description: 'Shows disk space usage. Requires system stats API.',
     defaultWidth: 160,
     defaultHeight: 100,
     hasApiKey: false,
@@ -1141,6 +1228,7 @@ const WIDGETS = {
     name: 'Uptime Monitor',
     icon: '📡',
     category: 'large',
+    description: 'Shows service uptime. Requires uptime monitoring backend.',
     defaultWidth: 350,
     defaultHeight: 220,
     hasApiKey: false,
@@ -1183,6 +1271,7 @@ const WIDGETS = {
     name: 'Docker Containers',
     icon: '🐳',
     category: 'large',
+    description: 'Lists Docker containers with status. Requires Docker API proxy.',
     defaultWidth: 380,
     defaultHeight: 250,
     hasApiKey: false,
@@ -1234,6 +1323,7 @@ const WIDGETS = {
     name: 'Network Speed',
     icon: '🌐',
     category: 'small',
+    description: 'Shows network upload/download speeds. Requires system stats API.',
     defaultWidth: 200,
     defaultHeight: 100,
     hasApiKey: false,
@@ -1276,6 +1366,7 @@ const WIDGETS = {
     name: 'Todo List',
     icon: '✅',
     category: 'large',
+    description: 'Task list with checkboxes. Requires storage backend.',
     defaultWidth: 350,
     defaultHeight: 300,
     hasApiKey: false,
@@ -1313,6 +1404,7 @@ const WIDGETS = {
     name: 'Unread Emails',
     icon: '📧',
     category: 'small',
+    description: 'Shows unread email count. Requires email API proxy.',
     defaultWidth: 160,
     defaultHeight: 100,
     hasApiKey: true,
@@ -1356,8 +1448,9 @@ const WIDGETS = {
     name: 'Pomodoro Timer',
     icon: '🎯',
     category: 'small',
+    description: 'Focus timer with configurable work/break intervals. Plays sound when done.',
     defaultWidth: 200,
-    defaultHeight: 120,
+    defaultHeight: 140,
     hasApiKey: false,
     properties: {
       title: 'Focus',
@@ -1369,31 +1462,89 @@ const WIDGETS = {
       <div style="font-size:11px;color:#8b949e;">▶️ Start</div>
     </div>`,
     generateHtml: (props) => `
-      <div class="kpi-card kpi-sm" id="widget-${props.id}" style="flex-direction:column;text-align:center;">
-        <div class="kpi-value" id="${props.id}-time">${props.workMinutes || 25}:00</div>
-        <button class="pomo-btn" id="${props.id}-btn" onclick="togglePomo_${props.id.replace(/-/g, '_')}()">▶️ Start</button>
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🎯 ${props.title || 'Focus'}</span>
+        </div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+          <div class="kpi-value" id="${props.id}-time">${props.workMinutes || 25}:00</div>
+          <button class="pomo-btn" id="${props.id}-btn" onclick="togglePomo_${props.id.replace(/-/g, '_')}()">▶️ Start</button>
+        </div>
       </div>`,
     generateJs: (props) => `
       // Pomodoro Widget: ${props.id}
       let pomoRunning_${props.id.replace(/-/g, '_')} = false;
       let pomoSeconds_${props.id.replace(/-/g, '_')} = ${(props.workMinutes || 25) * 60};
       let pomoInterval_${props.id.replace(/-/g, '_')};
+      let pomoIsBreak_${props.id.replace(/-/g, '_')} = false;
+      
+      // Audio context created on first user interaction
+      let pomoAudioCtx_${props.id.replace(/-/g, '_')} = null;
+      
+      function playPomoSound_${props.id.replace(/-/g, '_')}() {
+        try {
+          if (!pomoAudioCtx_${props.id.replace(/-/g, '_')}) {
+            pomoAudioCtx_${props.id.replace(/-/g, '_')} = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          const ctx = pomoAudioCtx_${props.id.replace(/-/g, '_')};
+          if (ctx.state === 'suspended') ctx.resume();
+          
+          const now = ctx.currentTime;
+          // Schedule 3 beeps
+          [0, 0.4, 0.8].forEach((delay, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = i === 2 ? 1000 : 800;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.3, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.3);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.3);
+          });
+        } catch (e) { console.log('Audio not supported:', e); }
+      }
+      
+      // Initialize audio context on first click
+      function initPomoAudio_${props.id.replace(/-/g, '_')}() {
+        if (!pomoAudioCtx_${props.id.replace(/-/g, '_')}) {
+          pomoAudioCtx_${props.id.replace(/-/g, '_')} = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+      
       function togglePomo_${props.id.replace(/-/g, '_')}() {
         const btn = document.getElementById('${props.id}-btn');
+        const timeEl = document.getElementById('${props.id}-time');
+        
+        // Initialize audio on user interaction
+        initPomoAudio_${props.id.replace(/-/g, '_')}();
+        
         if (pomoRunning_${props.id.replace(/-/g, '_')}) {
           clearInterval(pomoInterval_${props.id.replace(/-/g, '_')});
           btn.textContent = '▶️ Start';
         } else {
+          // If showing Done, reset to work time
+          if (timeEl.textContent === 'Done!' || timeEl.textContent === 'Break!') {
+            pomoIsBreak_${props.id.replace(/-/g, '_')} = !pomoIsBreak_${props.id.replace(/-/g, '_')};
+            pomoSeconds_${props.id.replace(/-/g, '_')} = pomoIsBreak_${props.id.replace(/-/g, '_')} 
+              ? ${(props.breakMinutes || 5) * 60} 
+              : ${(props.workMinutes || 25) * 60};
+          }
+          
           pomoInterval_${props.id.replace(/-/g, '_')} = setInterval(() => {
             pomoSeconds_${props.id.replace(/-/g, '_')}--;
             if (pomoSeconds_${props.id.replace(/-/g, '_')} <= 0) {
               clearInterval(pomoInterval_${props.id.replace(/-/g, '_')});
-              document.getElementById('${props.id}-time').textContent = 'Done!';
+              playPomoSound_${props.id.replace(/-/g, '_')}();
+              timeEl.textContent = pomoIsBreak_${props.id.replace(/-/g, '_')} ? 'Done!' : 'Break!';
+              btn.textContent = pomoIsBreak_${props.id.replace(/-/g, '_')} ? '🔄 Reset' : '☕ Break';
+              pomoRunning_${props.id.replace(/-/g, '_')} = false;
               return;
             }
             const m = Math.floor(pomoSeconds_${props.id.replace(/-/g, '_')} / 60);
             const s = pomoSeconds_${props.id.replace(/-/g, '_')} % 60;
-            document.getElementById('${props.id}-time').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            timeEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
           }, 1000);
           btn.textContent = '⏸️ Pause';
         }
@@ -1406,6 +1557,7 @@ const WIDGETS = {
     name: 'GitHub Stats',
     icon: '🐙',
     category: 'large',
+    description: 'Shows GitHub user/repo stats. Optional token for higher rate limits.',
     defaultWidth: 380,
     defaultHeight: 200,
     hasApiKey: true,
@@ -1458,6 +1610,7 @@ const WIDGETS = {
     name: 'Stock Ticker',
     icon: '📈',
     category: 'small',
+    description: 'Shows stock prices. Requires Finnhub or similar API key.',
     defaultWidth: 200,
     defaultHeight: 130,
     hasApiKey: true,
@@ -1508,6 +1661,7 @@ const WIDGETS = {
     name: 'Crypto Price',
     icon: '₿',
     category: 'small',
+    description: 'Shows cryptocurrency prices from public APIs.',
     defaultWidth: 200,
     defaultHeight: 130,
     hasApiKey: false,
@@ -1561,6 +1715,7 @@ const WIDGETS = {
     name: 'Indoor Climate',
     icon: '🏠',
     category: 'small',
+    description: 'Shows indoor temperature/humidity from smart home sensors.',
     defaultWidth: 200,
     defaultHeight: 100,
     hasApiKey: true,
@@ -1603,6 +1758,7 @@ const WIDGETS = {
     name: 'Camera Feed',
     icon: '📷',
     category: 'large',
+    description: 'Displays live camera stream from URL.',
     defaultWidth: 400,
     defaultHeight: 300,
     hasApiKey: true,
@@ -1636,6 +1792,7 @@ const WIDGETS = {
     name: 'Power Usage',
     icon: '🔌',
     category: 'small',
+    description: 'Shows power consumption from smart home integration.',
     defaultWidth: 180,
     defaultHeight: 100,
     hasApiKey: true,
@@ -1682,6 +1839,7 @@ const WIDGETS = {
     name: 'Now Playing',
     icon: '🎵',
     category: 'large',
+    description: 'Shows currently playing music from Spotify/music service API.',
     defaultWidth: 350,
     defaultHeight: 120,
     hasApiKey: true,
@@ -1736,6 +1894,7 @@ const WIDGETS = {
     name: 'Quote of Day',
     icon: '💭',
     category: 'large',
+    description: 'Displays daily inspirational quote from public API.',
     defaultWidth: 400,
     defaultHeight: 150,
     hasApiKey: false,
@@ -1775,16 +1934,18 @@ const WIDGETS = {
     name: 'Countdown',
     icon: '⏳',
     category: 'small',
+    description: 'Counts down days (and optionally hours/minutes) to a target date.',
     defaultWidth: 220,
     defaultHeight: 120,
     hasApiKey: false,
     properties: {
       title: 'Countdown',
       targetDate: '2025-12-31',
-      label: 'New Year'
+      showHours: false,
+      showMinutes: false
     },
     preview: `<div style="text-align:center;padding:8px;">
-      <div style="font-size:11px;color:#8b949e;">New Year</div>
+      <div style="font-size:11px;color:#8b949e;">Event Name</div>
       <div style="font-size:20px;">42 days</div>
     </div>`,
     generateHtml: (props) => `
@@ -1793,45 +1954,154 @@ const WIDGETS = {
           <span class="dash-card-title">⏳ ${props.title || 'Countdown'}</span>
         </div>
         <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-label">${props.label || 'Event'}</div>
-          <div class="kpi-value" id="${props.id}-days">—</div>
+          <div class="kpi-value" id="${props.id}-countdown">—</div>
+          <div class="kpi-label" id="${props.id}-date">${props.targetDate || ''}</div>
         </div>
       </div>`,
     generateJs: (props) => `
       // Countdown Widget: ${props.id}
       function update_${props.id.replace(/-/g, '_')}() {
-        const target = new Date('${props.targetDate || '2025-12-31'}');
+        const target = new Date('${props.targetDate || '2025-12-31'}T00:00:00');
         const now = new Date();
         const diff = target - now;
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        document.getElementById('${props.id}-days').textContent = days > 0 ? days + ' days' : 'Today!';
+        const el = document.getElementById('${props.id}-countdown');
+        
+        if (diff <= 0) {
+          el.textContent = 'Today!';
+          return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let parts = [];
+        parts.push(days + 'd');
+        ${props.showHours ? "parts.push(hours + 'h');" : ''}
+        ${props.showMinutes ? "parts.push(minutes + 'm');" : ''}
+        
+        el.textContent = parts.join(' ');
       }
       update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, 60000);
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${props.showMinutes ? '1000' : '60000'});
     `
   },
 
-  'image-embed': {
-    name: 'Image Embed',
+  'image-local': {
+    name: 'Image',
     icon: '🖼️',
     category: 'large',
+    description: 'Displays a local image file. Embedded as base64 for portable exports.',
     defaultWidth: 300,
-    defaultHeight: 200,
+    defaultHeight: 220,
     hasApiKey: false,
     properties: {
       title: 'Image',
-      imageUrl: 'https://placekitten.com/300/200',
-      fit: 'cover'
+      imagePath: ''
     },
     preview: `<div style="background:#21262d;height:100%;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px;">
-      🖼️ Image
+      🖼️ Local Image
     </div>`,
     generateHtml: (props) => `
-      <div class="image-widget" id="widget-${props.id}" style="height:100%;border-radius:8px;overflow:hidden;">
-        <img src="${props.imageUrl || ''}" style="width:100%;height:100%;object-fit:${props.fit || 'cover'};">
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🖼️ ${props.title || 'Image'}</span>
+        </div>
+        <div class="dash-card-body" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);">
+          ${props.imagePath 
+            ? `<img src="${props.imagePath}" style="width:100%;height:100%;object-fit:contain;">`
+            : `<span style="color:var(--text-muted);font-size:12px;">🖼️ No image path</span>`
+          }
+        </div>
       </div>`,
     generateJs: (props) => `
-      // Image Embed Widget: ${props.id}
+      // Local Image Widget: ${props.id}
+      // Static image - no JS needed
+    `
+  },
+
+  'image-random': {
+    name: 'Random Image',
+    icon: '🎲',
+    category: 'large',
+    description: 'Rotates through multiple images. Pick files to add to rotation.',
+    defaultWidth: 300,
+    defaultHeight: 220,
+    hasApiKey: false,
+    properties: {
+      title: 'Random Image',
+      images: [],
+      refreshInterval: 30
+    },
+    preview: `<div style="background:#21262d;height:100%;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px;">
+      🎲 Random Image
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🎲 ${props.title || 'Random Image'}</span>
+        </div>
+        <div class="dash-card-body" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);">
+          <img id="${props.id}-img" src="" style="width:100%;height:100%;object-fit:contain;display:none;">
+          <span id="${props.id}-placeholder" style="color:var(--text-muted);font-size:12px;">🎲 No images added</span>
+        </div>
+      </div>`,
+    generateJs: (props) => {
+      const images = (props.images || []).map(img => img.data);
+      return `
+      // Random Image Widget: ${props.id}
+      (function() {
+        const images = ${JSON.stringify(images)};
+        
+        const imgEl = document.getElementById('${props.id}-img');
+        const placeholder = document.getElementById('${props.id}-placeholder');
+        
+        function showRandomImage() {
+          if (images.length === 0) return;
+          const randomIndex = Math.floor(Math.random() * images.length);
+          imgEl.src = images[randomIndex];
+          imgEl.style.display = 'block';
+          placeholder.style.display = 'none';
+        }
+        
+        if (images.length > 0) {
+          showRandomImage();
+          setInterval(showRandomImage, ${(props.refreshInterval || 30) * 1000});
+        }
+      })();
+    `;
+    }
+  },
+
+  'image-embed': {
+    name: 'Web Image',
+    icon: '🌐',
+    category: 'large',
+    description: 'Displays an image from a web URL.',
+    defaultWidth: 300,
+    defaultHeight: 220,
+    hasApiKey: false,
+    properties: {
+      title: 'Image',
+      imageUrl: ''
+    },
+    preview: `<div style="background:#21262d;height:100%;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px;">
+      🌐 Web Image
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🌐 ${props.title || 'Image'}</span>
+        </div>
+        <div class="dash-card-body" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);">
+          ${props.imageUrl 
+            ? `<img src="${props.imageUrl}" style="width:100%;height:100%;object-fit:contain;">`
+            : `<span style="color:var(--text-muted);font-size:12px;">🌐 No image URL</span>`
+          }
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      // Web Image Widget: ${props.id}
       // Static image - no JS needed
     `
   },
@@ -1840,12 +2110,13 @@ const WIDGETS = {
     name: 'Quick Links',
     icon: '🔗',
     category: 'large',
+    description: 'Grid of clickable links with auto-fetched favicons.',
     defaultWidth: 300,
     defaultHeight: 200,
     hasApiKey: false,
     properties: {
       title: 'Quick Links',
-      links: 'Google|https://google.com,GitHub|https://github.com,Reddit|https://reddit.com'
+      links: []
     },
     preview: `<div style="padding:4px;font-size:11px;">
       <div style="padding:4px 0;">🔗 Google</div>
@@ -1858,22 +2129,40 @@ const WIDGETS = {
           <span class="dash-card-title">🔗 ${props.title || 'Quick Links'}</span>
         </div>
         <div class="dash-card-body links-list" id="${props.id}-links">
+          ${(props.links || []).length === 0 ? '<span style="color:var(--text-muted);font-size:12px;">No links added</span>' : ''}
         </div>
       </div>`,
-    generateJs: (props) => `
+    generateJs: (props) => {
+      const links = props.links || [];
+      return `
       // Quick Links Widget: ${props.id}
-      const links_${props.id.replace(/-/g, '_')} = '${props.links || ''}'.split(',').filter(Boolean);
-      document.getElementById('${props.id}-links').innerHTML = links_${props.id.replace(/-/g, '_')}.map(link => {
-        const [name, url] = link.split('|');
-        return '<a href="' + (url || '#') + '" class="quick-link" target="_blank">' + name + '</a>';
-      }).join('');
-    `
+      (function() {
+        const links = ${JSON.stringify(links)};
+        const container = document.getElementById('${props.id}-links');
+        
+        if (links.length === 0) {
+          container.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No links added</span>';
+          return;
+        }
+        
+        container.innerHTML = links.map(link => {
+          const domain = new URL(link.url).hostname;
+          const favicon = 'https://www.google.com/s2/favicons?sz=32&domain=' + domain;
+          return '<a href="' + link.url + '" class="quick-link" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 0;text-decoration:none;color:var(--text-primary);border-bottom:1px solid var(--border);">' +
+            '<img src="' + favicon + '" style="width:16px;height:16px;" onerror="this.style.display=\\'none\\'">' +
+            '<span>' + link.name + '</span>' +
+          '</a>';
+        }).join('');
+      })();
+    `;
+    }
   },
 
   'iframe-embed': {
     name: 'Iframe Embed',
     icon: '🌐',
     category: 'large',
+    description: 'Embeds any webpage in an iframe. Some sites may block embedding.',
     defaultWidth: 500,
     defaultHeight: 350,
     hasApiKey: false,
@@ -1904,6 +2193,7 @@ const WIDGETS = {
     name: 'RSS Ticker',
     icon: '📜',
     category: 'bar',
+    description: 'Scrolling RSS feed headlines. May need CORS proxy.',
     defaultWidth: 1920,
     defaultHeight: 40,
     hasApiKey: false,
@@ -1943,6 +2233,7 @@ const WIDGETS = {
     name: 'RSS Feed',
     icon: '📡',
     category: 'large',
+    description: 'Displays RSS feed items in a list. May need CORS proxy.',
     defaultWidth: 400,
     defaultHeight: 300,
     hasApiKey: false,
@@ -1993,6 +2284,7 @@ const WIDGETS = {
     name: 'World Clock',
     icon: '🌍',
     category: 'large',
+    description: 'Shows current time in multiple cities side-by-side.',
     defaultWidth: 300,
     defaultHeight: 180,
     hasApiKey: false,
@@ -2049,48 +2341,6 @@ const WIDGETS = {
       }
       update_${props.id.replace(/-/g, '_')}();
       setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
-    `
-  },
-
-  'battery-status': {
-    name: 'Battery Status',
-    icon: '🔋',
-    category: 'small',
-    defaultWidth: 160,
-    defaultHeight: 100,
-    hasApiKey: false,
-    properties: {
-      title: 'Battery',
-      device: 'Laptop'
-    },
-    preview: `<div style="text-align:center;padding:8px;">
-      <div style="font-size:20px;color:#3fb950;">87%</div>
-      <div style="font-size:11px;color:#8b949e;">Charging</div>
-    </div>`,
-    generateHtml: (props) => `
-      <div class="kpi-card kpi-sm" id="widget-${props.id}">
-        <div class="kpi-icon">🔋</div>
-        <div class="kpi-data">
-          <div class="kpi-value green" id="${props.id}-level">—</div>
-          <div class="kpi-label" id="${props.id}-status">${props.device || 'Battery'}</div>
-        </div>
-      </div>`,
-    generateJs: (props) => `
-      // Battery Status Widget: ${props.id}
-      async function update_${props.id.replace(/-/g, '_')}() {
-        try {
-          const battery = await navigator.getBattery();
-          const pct = Math.round(battery.level * 100);
-          document.getElementById('${props.id}-level').textContent = pct + '%';
-          document.getElementById('${props.id}-status').textContent = battery.charging ? 'Charging' : 'On Battery';
-          const el = document.getElementById('${props.id}-level');
-          el.className = 'kpi-value ' + (pct > 50 ? 'green' : pct > 20 ? 'orange' : 'red');
-        } catch (e) {
-          document.getElementById('${props.id}-level').textContent = 'N/A';
-        }
-      }
-      update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, 60000);
     `
   }
 };

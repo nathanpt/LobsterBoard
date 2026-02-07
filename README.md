@@ -1,0 +1,194 @@
+# 🦞 LobsterBoard
+
+A drag-and-drop dashboard builder for creating beautiful, customizable status boards.
+
+![LobsterBoard](lobsterboard-logo-final.png)
+
+## Features
+
+- **Visual Builder**: Drag and drop widgets onto a grid
+- **47+ Widgets**: Weather, clocks, system stats, AI usage, and more
+- **Dark Theme**: Easy on the eyes, perfect for always-on displays
+- **Export to HTML**: Single-file dashboards that run anywhere
+- **No Backend Required**: Many widgets work with just a browser
+
+## Quick Start
+
+1. Open `index.html` in your browser
+2. Drag widgets from the sidebar onto the canvas
+3. Click widgets to edit their properties
+4. Click **Export Dashboard** to download your dashboard
+
+## Widget Categories
+
+### ✅ Works Out of Box (No API Needed)
+These widgets work immediately with no configuration:
+- Weather (wttr.in)
+- Clock, World Clock
+- Countdown, Pomodoro Timer
+- Images (local, web, random rotation)
+- Quick Links
+- Iframe Embed
+- Release Tracker (GitHub public API)
+
+### 🦞 OpenClaw Widgets
+These widgets connect to a running [OpenClaw](https://github.com/openclaw/openclaw) gateway:
+- Auth Status
+- OpenClaw Release
+- Activity List
+- Cron Jobs
+- System Log
+- Session Count
+- Token Gauge
+
+**See [Using OpenClaw Widgets](#using-openclaw-widgets) below.**
+
+### 🔑 API Key Required
+These widgets need you to provide an API key:
+- News Ticker (NewsAPI)
+- Stock Ticker (Finnhub)
+- GitHub Stats (optional, for higher rate limits)
+
+### ⚠️ Custom Backend Required
+These widgets need custom API endpoints:
+- AI Usage (Claude, GPT, Gemini)
+- CPU/Memory, Disk Usage
+- Docker Containers
+- And more...
+
+---
+
+## Using OpenClaw Widgets
+
+OpenClaw widgets fetch data from your local OpenClaw gateway. Due to browser CORS restrictions, you need to either:
+
+### Option A: Use the Included Server (Recommended)
+
+The server proxies API requests to OpenClaw, solving CORS issues.
+
+1. **Export your dashboard** from the builder (Download button)
+
+2. **Extract the ZIP** to a folder
+
+3. **Copy `export-server.js`** to that folder (or it may already be included)
+
+4. **Run the server**:
+   ```bash
+   cd your-dashboard-folder
+   node export-server.js
+   ```
+
+5. **Open** http://localhost:8080 in your browser
+
+**Configuration** (environment variables):
+```bash
+# Custom port
+PORT=3000 node export-server.js
+
+# Custom OpenClaw URL (if not on default port)
+OPENCLAW_URL=http://localhost:11470 node export-server.js
+
+# Expose to network (⚠️ only on trusted networks!)
+HOST=0.0.0.0 node export-server.js
+```
+
+### Option B: Run OpenClaw with CORS Headers
+
+If you control your OpenClaw config, you can add CORS headers directly.
+
+---
+
+## OpenClaw API Authentication
+
+Some OpenClaw widgets require authentication. Here's how to get your API key:
+
+### Getting Your OpenClaw API Key
+
+1. **Check your OpenClaw config file** (usually `~/.config/openclaw/config.yaml` or similar)
+
+2. **Look for the `gateway` section**:
+   ```yaml
+   gateway:
+     auth:
+       tokens:
+         - name: dashboard
+           token: your-api-key-here
+   ```
+
+3. **If no token exists**, add one:
+   ```yaml
+   gateway:
+     auth:
+       tokens:
+         - name: dashboard
+           token: my-secret-dashboard-token
+   ```
+
+4. **Restart OpenClaw** for changes to take effect
+
+5. **Use this token** in the API Key field when adding OpenClaw widgets
+
+### Alternative: Use the OpenClaw CLI
+
+```bash
+# Check current config
+openclaw gateway config
+
+# The gateway status endpoint doesn't require auth
+curl http://localhost:11470/api/status
+```
+
+**Note**: The `/api/status` endpoint is typically public and doesn't require authentication. Other endpoints like `/api/activity` and `/api/logs` may require a token.
+
+---
+
+## Exporting Dashboards
+
+1. Click the **💾 Export** button in the toolbar
+2. Choose **Download Dashboard**
+3. A ZIP file is created containing:
+   - `index.html` - Your complete dashboard
+   - `export-server.js` - Server for OpenClaw widgets (optional)
+   - Any embedded images
+
+The exported HTML is self-contained and can be:
+- Opened directly in a browser (for non-API widgets)
+- Served via the included Node.js server
+- Hosted on any static web server
+
+---
+
+## Development
+
+### File Structure
+```
+dashboard-builder/
+├── index.html          # Main builder UI
+├── css/
+│   └── styles.css      # Dashboard styles
+├── js/
+│   ├── builder.js      # Builder logic
+│   └── widgets.js      # Widget definitions
+├── export-server.js    # Node.js server for exports
+└── WIDGETS-STATUS.md   # Widget verification status
+```
+
+### Adding New Widgets
+
+See `js/widgets.js` for widget definitions. Each widget has:
+- `name`, `icon`, `category`
+- `description` - Shows in properties panel
+- `defaultWidth`, `defaultHeight`
+- `properties` - Configurable options
+- `generateHtml()` - Returns widget HTML
+- `generateJs()` - Returns widget JavaScript
+
+---
+
+## License
+
+MIT
+
+---
+
+Made with 🦞 by the LobsterBoard team

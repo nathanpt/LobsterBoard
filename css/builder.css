@@ -781,6 +781,29 @@ body {
   background: var(--bg-hover);
 }
 
+/* Pomodoro Button */
+.pomo-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pomo-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.pomo-btn:active {
+  background: var(--bg-secondary);
+}
+
 /* Mascot at bottom of sidebar */
 .sidebar-mascot {
   flex-shrink: 0;

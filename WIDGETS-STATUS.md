@@ -5,13 +5,17 @@
 - [x] weather-multi - wttr.in (free, no key) - **VERIFIED**
 - [x] clock - pure JS - **VERIFIED**
 - [x] world-clock - uses wttr.in for timezone - **VERIFIED**
-- [ ] countdown - pure JS
-- [ ] pomodoro - pure JS
-- [ ] image-embed - static display
-- [ ] quick-links - static links
-- [ ] iframe-embed - embeds URL
-- [ ] battery-status - browser Battery API
-- [ ] release - GitHub public API
+- [x] countdown - date picker, hours/minutes options - **VERIFIED**
+- [x] pomodoro - work/break times, sound notification - **VERIFIED**
+- [x] image-local - file picker, embedded base64 - **VERIFIED**
+- [x] image-embed - web URL input - **VERIFIED** (renamed to "Web Image")
+- [x] image-random - multi-file picker, visual list, delete - **VERIFIED**
+- [x] quick-links - add/delete interface, auto-favicons - **VERIFIED**
+- [x] iframe-embed - URL field in properties - **VERIFIED**
+- [x] release - GitHub public API, repo + version fields - **VERIFIED**
+
+## ❤️ Health
+- [ ] sleep-ring (Sleep Score) - health data API (Garmin, etc.)
 
 ## 🔑 User Provides API Key
 - [ ] news-ticker - NewsAPI
@@ -19,7 +23,8 @@
 - [ ] crypto-price - various free APIs
 - [ ] github-stats - optional token for rate limits
 
-## 🦞 Needs OpenClaw Running
+## 🦞 Needs OpenClaw Running (use server.js proxy)
+- [x] openclaw-release - /api/status, compares to GitHub - **VERIFIED**
 - [ ] auth-status - /api/status
 - [ ] activity-list - /api/activity
 - [ ] cron-jobs - /api/cron
@@ -27,6 +32,8 @@
 - [ ] session-count - /api/sessions
 - [ ] token-gauge - /api/usage/tokens
 - [ ] api-status - checks OpenClaw + external
+
+Note: OpenClaw widgets need server.js proxy due to CORS. Preview shows error; works when exported.
 
 ## ⚠️ Needs Backend (Custom Setup Required)
 - [ ] ai-usage-claude - proxy to Anthropic usage API
@@ -49,8 +56,7 @@
 - [ ] now-playing - music service API
 - [ ] rss-ticker - may need CORS proxy
 - [ ] rss-feed - may need CORS proxy
-- [ ] sleep-ring - health data API
-- [ ] stat-card - generic, depends on endpoint
+- [x] stat-card - REMOVED (static only, not useful)
 - [ ] topbar - depends on configuration
 
 ---
