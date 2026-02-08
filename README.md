@@ -109,50 +109,6 @@ If you control your OpenClaw config, you can add CORS headers directly.
 
 ---
 
-## OpenClaw API Authentication
-
-Some OpenClaw widgets require authentication. Here's how to get your API key:
-
-### Getting Your OpenClaw API Key
-
-1. **Check your OpenClaw config file** (usually `~/.config/openclaw/config.yaml` or similar)
-
-2. **Look for the `gateway` section**:
-   ```yaml
-   gateway:
-     auth:
-       tokens:
-         - name: dashboard
-           token: your-api-key-here
-   ```
-
-3. **If no token exists**, add one:
-   ```yaml
-   gateway:
-     auth:
-       tokens:
-         - name: dashboard
-           token: my-secret-dashboard-token
-   ```
-
-4. **Restart OpenClaw** for changes to take effect
-
-5. **Use this token** in the API Key field when adding OpenClaw widgets
-
-### Alternative: Use the OpenClaw CLI
-
-```bash
-# Check current config
-openclaw gateway config
-
-# The gateway status endpoint doesn't require auth
-curl http://localhost:YOUR_PORT/api/status
-```
-
-**Note**: The `/api/status` endpoint is typically public and doesn't require authentication. Other endpoints like `/api/activity` and `/api/logs` may require a token.
-
----
-
 ## Exporting Dashboards
 
 1. Click the **💾 Export** button in the toolbar
