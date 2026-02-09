@@ -454,6 +454,7 @@ function renderWidget(widget) {
 
   const el = document.createElement('div');
   el.className = 'placed-widget';
+  el.dataset.type = widget.type;
   el.id = widget.id;
   el.style.left = widget.x + 'px';
   el.style.top = widget.y + 'px';

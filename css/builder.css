@@ -1093,3 +1093,20 @@ body[data-mode="view"] .edit-layout-btn {
 body[data-mode="edit"] .edit-layout-btn {
   display: none;
 }
+
+/* Line widgets: transparent container, no chrome */
+.placed-widget[data-type="horizontal-line"],
+.placed-widget[data-type="vertical-line"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+.placed-widget[data-type="horizontal-line"] .widget-render,
+.placed-widget[data-type="vertical-line"] .widget-render {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}

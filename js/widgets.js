@@ -760,8 +760,8 @@ const WIDGETS = {
     },
     preview: `<div style="padding:4px 0;"><hr style="border:none;border-top:2px solid #30363d;"></div>`,
     generateHtml: (props) => `
-      <div id="widget-${props.id}" style="height:100%;display:flex;align-items:center;">
-        <hr style="width:100%;border:none;border-top:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};margin:0;">
+      <div id="widget-${props.id}" style="width:100%;height:100%;display:flex;align-items:center;padding:0;">
+        <hr style="width:100%;border:none;border-top:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};margin:0;flex-shrink:0;">
       </div>`,
     generateJs: () => ''
   },
@@ -782,8 +782,8 @@ const WIDGETS = {
     },
     preview: `<div style="display:flex;justify-content:center;height:40px;"><div style="border-left:2px solid #30363d;height:100%;"></div></div>`,
     generateHtml: (props) => `
-      <div id="widget-${props.id}" style="height:100%;display:flex;justify-content:center;">
-        <div style="border-left:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};height:100%;"></div>
+      <div id="widget-${props.id}" style="width:100%;height:100%;display:flex;justify-content:center;padding:0;">
+        <div style="border-left:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};height:100%;flex-shrink:0;"></div>
       </div>`,
     generateJs: () => ''
   },
