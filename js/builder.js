@@ -1582,7 +1582,17 @@ function parseCronJobs() {
   try {
     if (output) {
       const parsed = JSON.parse(output);
-      jobs = parsed.jobs || [];
+      // Transform jobs to widget-expected format
+      jobs = (parsed.jobs || []).map(job => ({
+        name: job.name || job.id || 'Unnamed',
+        next: job.state?.nextRunAtMs 
+          ? new Date(job.state.nextRunAtMs).toLocaleString('en-US', { 
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+            })
+          : (job.schedule?.expr || '—'),
+        enabled: job.enabled !== false,
+        lastStatus: job.state?.lastStatus || null
+      }));
     }
   } catch (e) {
     console.error('Failed to parse cron jobs:', e.message);
