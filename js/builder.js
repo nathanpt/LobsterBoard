@@ -92,8 +92,15 @@ function setEditMode(enable) {
   });
   selectWidget(null); // Deselect any widget when mode changes
   updateEmptyState();
-  if (!enable && state.widgets.length > 0) {
-    executeWidgetScripts();
+  if (!enable) {
+    scaleCanvasToFit();
+    if (state.widgets.length > 0) {
+      executeWidgetScripts();
+    }
+  } else {
+    // Restore edit mode zoom
+    const canvas = document.getElementById('canvas');
+    canvas.style.transform = `scale(${state.zoom})`;
   }
 }
 
@@ -141,6 +148,29 @@ function stopWidgetScripts() {
     _statsCallbacks = [];
   }
 }
+
+function scaleCanvasToFit() {
+  const canvas = document.getElementById('canvas');
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cw = state.canvas.width;
+  const ch = state.canvas.height;
+  const scale = Math.min(vw / cw, vh / ch);
+  canvas.style.transform = `scale(${scale})`;
+  canvas.style.transformOrigin = 'top left';
+  // Center if there's leftover space
+  const scaledW = cw * scale;
+  const scaledH = ch * scale;
+  const offsetX = Math.max(0, (vw - scaledW) / 2);
+  const offsetY = Math.max(0, (vh - scaledH) / 2);
+  canvas.style.marginLeft = offsetX + 'px';
+  canvas.style.marginTop = offsetY + 'px';
+}
+
+// Re-scale on window resize in view mode
+window.addEventListener('resize', () => {
+  if (!state.editMode) scaleCanvasToFit();
+});
 
 function updateEmptyState() {
   if (state.widgets.length === 0) {

@@ -875,6 +875,12 @@ body[data-mode="view"] .canvas-wrapper {
   flex: 1;
   padding: 0;
   background: var(--bg-primary);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
 }
 
 body[data-mode="view"] .canvas {
@@ -882,6 +888,8 @@ body[data-mode="view"] .canvas {
   border: none;
   border-radius: 0;
   box-shadow: none;
+  transform-origin: top left;
+  /* Scale is set dynamically by JS */
 }
 
 body[data-mode="view"] .canvas-grid,
