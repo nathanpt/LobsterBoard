@@ -108,7 +108,7 @@
       "x": 600,
       "y": 180,
       "width": 280,
-      "height": 120,
+      "height": 140,
       "properties": {
         "title": "Network",
         "endpoint": "/api/network",
@@ -139,6 +139,18 @@
         "title": "Uptime",
         "services": "Website,API,Database",
         "refreshInterval": 30
+      }
+    },
+    {
+      "id": "widget-11",
+      "type": "topbar",
+      "x": 0,
+      "y": 720,
+      "width": 1920,
+      "height": 48,
+      "properties": {
+        "title": "OpenClaw",
+        "links": "Dashboard,Activity,Settings"
       }
     }
   ]

@@ -344,14 +344,29 @@
         </div>
       </div>
 
+      <!-- Layout -->
+      <div class="widget-section">
+        <h4>📐 Layout</h4>
+        <div class="widget-list">
+          <div class="widget-item" draggable="true" data-widget="text-header">
+            <span class="widget-icon">🔤</span>
+            <span class="widget-name">Header / Text</span>
+          </div>
+          <div class="widget-item" draggable="true" data-widget="horizontal-line">
+            <span class="widget-icon">➖</span>
+            <span class="widget-name">Horizontal Line</span>
+          </div>
+          <div class="widget-item" draggable="true" data-widget="vertical-line">
+            <span class="widget-icon">│</span>
+            <span class="widget-name">Vertical Line</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Bars -->
       <div class="widget-section">
         <h4>📊 Bars</h4>
         <div class="widget-list">
-          <div class="widget-item" draggable="true" data-widget="topbar">
-            <span class="widget-icon">🔝</span>
-            <span class="widget-name">Top Nav Bar</span>
-          </div>
           <div class="widget-item" draggable="true" data-widget="news-ticker">
             <span class="widget-icon">📰</span>
             <span class="widget-name">News Ticker</span>
@@ -460,6 +475,38 @@
               <label for="prop-show-minutes" style="margin:0;cursor:pointer;font-size:12px;">Show Minutes</label>
             </div>
           </div>
+        </div>
+        <div class="prop-group" id="prop-fontsize-group" style="display:none;">
+          <label>Font Size (px)</label>
+          <input type="number" id="prop-fontsize" min="8" max="120" placeholder="24">
+        </div>
+        <div class="prop-group" id="prop-fontcolor-group" style="display:none;">
+          <label>Font Color</label>
+          <input type="color" id="prop-fontcolor" value="#e6edf3" style="width:100%;height:32px;border:none;cursor:pointer;">
+        </div>
+        <div class="prop-group" id="prop-textalign-group" style="display:none;">
+          <label>Alignment</label>
+          <select id="prop-textalign">
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <div class="prop-group" id="prop-fontweight-group" style="display:none;">
+          <label>Font Weight</label>
+          <select id="prop-fontweight">
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+            <option value="lighter">Light</option>
+          </select>
+        </div>
+        <div class="prop-group" id="prop-linecolor-group" style="display:none;">
+          <label>Line Color</label>
+          <input type="color" id="prop-linecolor" value="#30363d" style="width:100%;height:32px;border:none;cursor:pointer;">
+        </div>
+        <div class="prop-group" id="prop-linethickness-group" style="display:none;">
+          <label>Line Thickness (px)</label>
+          <input type="number" id="prop-linethickness" min="1" max="20" placeholder="2">
         </div>
         <div class="prop-group" id="prop-pomodoro-group" style="display:none;">
           <label>Timer Settings</label>

@@ -666,6 +666,16 @@ function initProperties() {
   document.getElementById('prop-work-minutes').addEventListener('change', onPropertyChange);
   document.getElementById('prop-break-minutes').addEventListener('change', onPropertyChange);
 
+  // Text header fields
+  document.getElementById('prop-fontsize').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-fontcolor').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-textalign').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-fontweight').addEventListener('change', onPropertyChange);
+
+  // Line fields
+  document.getElementById('prop-linecolor').addEventListener('input', onPropertyChange);
+  document.getElementById('prop-linethickness').addEventListener('change', onPropertyChange);
+
   // Image embed fields
   document.getElementById('prop-imagepath').addEventListener('input', onPropertyChange);
   document.getElementById('prop-imagefile').addEventListener('change', onImageFileSelect);
@@ -721,6 +731,32 @@ function showProperties(widget) {
   document.getElementById('prop-release-group').style.display = 'none';
   document.getElementById('prop-openclawurl-group').style.display = 'none';
   document.getElementById('prop-title-hint').style.display = 'none';
+  document.getElementById('prop-fontsize-group').style.display = 'none';
+  document.getElementById('prop-fontcolor-group').style.display = 'none';
+  document.getElementById('prop-textalign-group').style.display = 'none';
+  document.getElementById('prop-fontweight-group').style.display = 'none';
+  document.getElementById('prop-linecolor-group').style.display = 'none';
+  document.getElementById('prop-linethickness-group').style.display = 'none';
+
+  // Show text header fields
+  if (widget.properties.fontSize !== undefined) {
+    document.getElementById('prop-fontsize-group').style.display = 'block';
+    document.getElementById('prop-fontsize').value = widget.properties.fontSize || 24;
+    document.getElementById('prop-fontcolor-group').style.display = 'block';
+    document.getElementById('prop-fontcolor').value = widget.properties.fontColor || '#e6edf3';
+    document.getElementById('prop-textalign-group').style.display = 'block';
+    document.getElementById('prop-textalign').value = widget.properties.textAlign || 'left';
+    document.getElementById('prop-fontweight-group').style.display = 'block';
+    document.getElementById('prop-fontweight').value = widget.properties.fontWeight || 'bold';
+  }
+
+  // Show line fields
+  if (widget.properties.lineColor !== undefined) {
+    document.getElementById('prop-linecolor-group').style.display = 'block';
+    document.getElementById('prop-linecolor').value = widget.properties.lineColor || '#30363d';
+    document.getElementById('prop-linethickness-group').style.display = 'block';
+    document.getElementById('prop-linethickness').value = widget.properties.lineThickness || 2;
+  }
 
   // Show location field (single)
   if (widget.properties.location !== undefined) {
@@ -1074,6 +1110,30 @@ function onPropertyChange(e) {
       break;
     case 'prop-refresh':
       widget.properties.refreshInterval = parseInt(e.target.value) || 60;
+      break;
+    case 'prop-fontsize':
+      widget.properties.fontSize = parseInt(e.target.value) || 24;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-fontcolor':
+      widget.properties.fontColor = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-textalign':
+      widget.properties.textAlign = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-fontweight':
+      widget.properties.fontWeight = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-linecolor':
+      widget.properties.lineColor = e.target.value;
+      renderWidgetPreview(widget);
+      break;
+    case 'prop-linethickness':
+      widget.properties.lineThickness = parseInt(e.target.value) || 2;
+      renderWidgetPreview(widget);
       break;
   }
 }

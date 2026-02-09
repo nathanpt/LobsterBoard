@@ -715,42 +715,77 @@ const WIDGETS = {
   // BARS
   // ─────────────────────────────────────────────
 
-  'topbar': {
-    name: 'Top Nav Bar',
-    icon: '🔝',
-    category: 'bar',
-    description: 'Navigation bar with clock, weather, and system stats.',
-    defaultWidth: 1920,
-    defaultHeight: 48,
+  'text-header': {
+    name: 'Header / Text',
+    icon: '🔤',
+    category: 'layout',
+    description: 'Custom text or heading. Adjustable font size, color, and alignment.',
+    defaultWidth: 400,
+    defaultHeight: 50,
     hasApiKey: false,
     properties: {
-      title: 'OpenClaw',
-      links: 'Dashboard,Activity,Settings'
+      title: 'My Dashboard',
+      showHeader: false,
+      fontSize: 24,
+      fontColor: '#e6edf3',
+      textAlign: 'left',
+      fontWeight: 'bold'
     },
-    preview: `<div style="background:#161b22;padding:8px;font-size:11px;display:flex;gap:12px;">
-      <span>🤖 OpenClaw</span>
-      <span style="color:#58a6ff;">Dashboard</span>
-      <span style="color:#8b949e;">Activity</span>
-    </div>`,
+    preview: `<div style="padding:8px;font-size:18px;font-weight:bold;">My Dashboard</div>`,
     generateHtml: (props) => `
-      <nav class="topbar" id="widget-${props.id}">
-        <div class="topbar-left">
-          <span class="topbar-brand">🤖 ${props.title || 'OpenClaw'}</span>
-          ${(props.links || 'Dashboard').split(',').map((link, i) => 
-            `<a href="#" class="topbar-link${i === 0 ? ' active' : ''}">${link.trim()}</a>`
-          ).join('')}
-        </div>
-        <div class="topbar-right">
-          <span class="topbar-meta" id="${props.id}-refresh">—</span>
-          <button class="topbar-refresh" onclick="location.reload()" title="Refresh">↻</button>
-        </div>
-      </nav>`,
-    generateJs: (props) => `
-      // Top Bar Widget: ${props.id}
-      // Updates last refresh timestamp
-      document.getElementById('${props.id}-refresh').textContent = 
-        new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    `
+      <div id="widget-${props.id}" style="height:100%;display:flex;align-items:center;padding:0 12px;
+        font-size:${props.fontSize || 24}px;
+        color:${props.fontColor || '#e6edf3'};
+        text-align:${props.textAlign || 'left'};
+        font-weight:${props.fontWeight || 'bold'};
+        justify-content:${props.textAlign === 'center' ? 'center' : props.textAlign === 'right' ? 'flex-end' : 'flex-start'};">
+        ${props.title || 'Header'}
+      </div>`,
+    generateJs: () => ''
+  },
+
+  'horizontal-line': {
+    name: 'Horizontal Line',
+    icon: '➖',
+    category: 'layout',
+    description: 'A horizontal divider line. Resize width to fit.',
+    defaultWidth: 600,
+    defaultHeight: 10,
+    hasApiKey: false,
+    properties: {
+      title: '',
+      showHeader: false,
+      lineColor: '#30363d',
+      lineThickness: 2
+    },
+    preview: `<div style="padding:4px 0;"><hr style="border:none;border-top:2px solid #30363d;"></div>`,
+    generateHtml: (props) => `
+      <div id="widget-${props.id}" style="height:100%;display:flex;align-items:center;">
+        <hr style="width:100%;border:none;border-top:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};margin:0;">
+      </div>`,
+    generateJs: () => ''
+  },
+
+  'vertical-line': {
+    name: 'Vertical Line',
+    icon: '│',
+    category: 'layout',
+    description: 'A vertical divider line. Resize height to fit.',
+    defaultWidth: 10,
+    defaultHeight: 300,
+    hasApiKey: false,
+    properties: {
+      title: '',
+      showHeader: false,
+      lineColor: '#30363d',
+      lineThickness: 2
+    },
+    preview: `<div style="display:flex;justify-content:center;height:40px;"><div style="border-left:2px solid #30363d;height:100%;"></div></div>`,
+    generateHtml: (props) => `
+      <div id="widget-${props.id}" style="height:100%;display:flex;justify-content:center;">
+        <div style="border-left:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};height:100%;"></div>
+      </div>`,
+    generateJs: () => ''
   },
 
   'news-ticker': {
