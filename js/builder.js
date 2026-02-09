@@ -1496,6 +1496,7 @@ function generateServerJs() {
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { execSync } = require('child_process');
 
 const PORT = process.env.PORT || 8080;
@@ -1510,6 +1511,8 @@ const MIME_TYPES = {
 // Cache for expensive CLI operations (30 second TTL)
 let statusCache = { data: null, timestamp: 0 };
 let cronCache = { data: null, timestamp: 0 };
+let activityCache = { data: null, timestamp: 0 };
+let logsCache = { data: null, timestamp: 0 };
 const CACHE_TTL = 30000;
 
 // Run openclaw CLI command and return output
@@ -1637,31 +1640,106 @@ const API_HANDLERS = {
   },
 
   '/api/activity': (req, res) => {
-    // Placeholder - would need session history access
-    sendSuccess(res, {
-      items: [{ text: 'Activity feed coming soon', time: new Date().toISOString() }]
+    const now = Date.now();
+    if (activityCache.data && (now - activityCache.timestamp) < CACHE_TTL) {
+      sendSuccess(res, activityCache.data);
+      return;
+    }
+
+    const cronRunsDir = path.join(os.homedir(), '.openclaw', 'cron', 'runs');
+    const cronJobsFile = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+    
+    // Build job ID to name mapping
+    let jobMap = {};
+    try {
+      if (fs.existsSync(cronJobsFile)) {
+        const jobsData = JSON.parse(fs.readFileSync(cronJobsFile, 'utf8'));
+        jobMap = Object.fromEntries((jobsData.jobs || []).map(j => [j.id, j.name || j.id]));
+      }
+    } catch (e) { /* ignore */ }
+
+    // Read all run files and merge entries
+    let allRuns = [];
+    try {
+      if (fs.existsSync(cronRunsDir)) {
+        const files = fs.readdirSync(cronRunsDir).filter(f => f.endsWith('.jsonl'));
+        for (const file of files) {
+          try {
+            const content = fs.readFileSync(path.join(cronRunsDir, file), 'utf8');
+            const lines = content.trim().split('\\n').filter(l => l.trim());
+            for (const line of lines) {
+              try {
+                const entry = JSON.parse(line);
+                if (entry.ts && entry.action === 'finished') {
+                  allRuns.push(entry);
+                }
+              } catch (e) { /* skip malformed lines */ }
+            }
+          } catch (e) { /* skip unreadable files */ }
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    // Sort by timestamp descending and take last 15
+    allRuns.sort((a, b) => b.ts - a.ts);
+    const recentRuns = allRuns.slice(0, 15);
+
+    const items = recentRuns.map(run => {
+      const jobName = jobMap[run.jobId] || run.jobId || 'Unknown Job';
+      const duration = run.durationMs ? \`(\${Math.round(run.durationMs / 1000)}s)\` : '';
+      const summary = run.summary ? \`: \${run.summary.slice(0, 50)}\` : '';
+      return {
+        text: \`\${jobName} \${duration}\${summary}\`,
+        time: new Date(run.ts).toISOString(),
+        status: run.status || 'unknown'
+      };
     });
+
+    // Fallback if no runs found
+    if (items.length === 0) {
+      items.push({ text: 'No recent activity', time: new Date().toISOString(), status: 'info' });
+    }
+
+    const data = { items };
+    activityCache = { data, timestamp: now };
+    sendSuccess(res, data);
   },
 
   '/api/logs': (req, res) => {
-    // Try to read recent logs from common locations
-    let lines = ['Log viewer coming soon'];
-    const logPaths = [
-      path.join(process.env.HOME || '', '.config/openclaw/logs/gateway.log'),
-      path.join(process.env.HOME || '', 'Library/Logs/openclaw/gateway.log'),
-      '/var/log/openclaw/gateway.log'
-    ];
-
-    for (const logPath of logPaths) {
-      try {
-        if (fs.existsSync(logPath)) {
-          const content = fs.readFileSync(logPath, 'utf8');
-          lines = content.split('\\\\n').slice(-100).filter(l => l.trim());
-          break;
-        }
-      } catch (e) { /* continue to next */ }
+    const now = Date.now();
+    if (logsCache.data && (now - logsCache.timestamp) < CACHE_TTL) {
+      sendSuccess(res, logsCache.data);
+      return;
     }
-    sendSuccess(res, { lines });
+
+    const logPath = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
+    let lines = [];
+
+    try {
+      if (fs.existsSync(logPath)) {
+        const content = fs.readFileSync(logPath, 'utf8');
+        const rawLines = content.split('\\n').filter(l => l.trim());
+        // Take last 75 lines, reverse for newest first
+        const recentLines = rawLines.slice(-75).reverse();
+        
+        lines = recentLines.map(line => {
+          // Parse format: TIMESTAMP [subsystem] message
+          const match = line.match(/^(\\S+)\\s+\\[(\\w+)\\]\\s+(.*)$/);
+          if (match) {
+            return { time: match[1], subsystem: match[2], message: match[3] };
+          }
+          return { raw: line };
+        });
+      } else {
+        lines = [{ message: 'Log file not found', subsystem: 'info' }];
+      }
+    } catch (e) {
+      lines = [{ message: \`Error reading logs: \${e.message}\`, subsystem: 'error' }];
+    }
+
+    const data = { lines };
+    logsCache = { data, timestamp: now };
+    sendSuccess(res, data);
   },
 
   '/api/sessions': (req, res) => {
