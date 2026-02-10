@@ -222,13 +222,17 @@ const WIDGETS = {
       // Auth Status Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
-          const res = await fetch('${props.endpoint || '/api/status'}');
-          const json = await res.json();
-          const data = json.data || json;
+          const res = await fetch('/api/auth');
+          const data = await res.json();
           const dot = document.getElementById('${props.id}-dot');
           const val = document.getElementById('${props.id}-value');
-          val.textContent = data.authMode === 'oauth' ? 'Subscription' : 'API';
-          dot.className = 'kpi-indicator ' + (data.authMode === 'oauth' ? 'green' : 'yellow');
+          if (data.status === 'ok') {
+            const isMonthly = data.mode === 'Monthly';
+            val.textContent = isMonthly ? 'Max' : 'API';
+            dot.className = 'kpi-indicator ' + (isMonthly ? 'green' : 'yellow');
+          } else {
+            val.textContent = '—';
+          }
         } catch (e) {
           console.error('Auth status widget error:', e);
           document.getElementById('${props.id}-value').textContent = '—';
@@ -323,21 +327,16 @@ const WIDGETS = {
       async function update_${props.id.replace(/-/g, '_')}() {
         const versionEl = document.getElementById('${props.id}-version');
         const statusEl = document.getElementById('${props.id}-status');
-        const baseUrl = '${props.openclawUrl || ''}'.replace(/\\/$/, '');
         
         try {
-          // Get current running version from OpenClaw API
-          const statusRes = await fetch(baseUrl + '/api/status');
-          const statusJson = await statusRes.json();
-          const statusData = statusJson.data || statusJson;
-          const currentVersion = (statusData.version || '').replace(/^v/, '');
+          const res = await fetch('/api/releases');
+          const data = await res.json();
+          if (data.status !== 'ok') throw new Error(data.message);
           
-          // Get latest release from GitHub
-          const ghRes = await fetch('https://api.github.com/repos/openclaw/openclaw/releases/latest');
-          const ghData = await ghRes.json();
-          const latestVersion = (ghData.tag_name || '').replace(/^v/, '');
+          const currentVersion = (data.current || '').replace(/^v/, '');
+          const latestVersion = (data.latest || '').replace(/^v/, '');
           
-          if (!currentVersion) {
+          if (!currentVersion || currentVersion === 'unknown') {
             versionEl.textContent = 'v' + latestVersion;
             statusEl.textContent = 'Latest release';
           } else if (currentVersion === latestVersion) {
@@ -353,8 +352,8 @@ const WIDGETS = {
           }
         } catch (e) {
           versionEl.textContent = '—';
-          statusEl.innerHTML = '<span style="font-size:10px;">CORS error - serve from same origin</span>';
-          console.error('OpenClaw Release widget: CORS error. Serve dashboard from OpenClaw or configure CORS.', e);
+          statusEl.textContent = 'Error';
+          console.error('OpenClaw Release widget error:', e);
         }
       }
       update_${props.id.replace(/-/g, '_')}();

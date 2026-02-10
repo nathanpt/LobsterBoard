@@ -257,6 +257,46 @@
         "lineColor": "#30363d",
         "lineThickness": 2
       }
+    },
+    {
+      "id": "widget-22",
+      "type": "auth-status",
+      "x": 1080,
+      "y": 100,
+      "width": 240,
+      "height": 140,
+      "properties": {
+        "title": "Auth Type",
+        "endpoint": "/api/status",
+        "refreshInterval": 30
+      }
+    },
+    {
+      "id": "widget-23",
+      "type": "openclaw-release",
+      "x": 1340,
+      "y": 100,
+      "width": 240,
+      "height": 140,
+      "properties": {
+        "title": "OpenClaw",
+        "openclawUrl": "",
+        "refreshInterval": 3600
+      }
+    },
+    {
+      "id": "widget-24",
+      "type": "release",
+      "x": 1600,
+      "y": 100,
+      "width": 260,
+      "height": 140,
+      "properties": {
+        "title": "Release",
+        "repo": "op7418/CodePilot",
+        "currentVersion": ".0.6",
+        "refreshInterval": 3600
+      }
     }
   ]
 }

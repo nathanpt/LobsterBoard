@@ -9,6 +9,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const si = require('systeminformation');
 
 const PORT = process.env.PORT || 8080;
@@ -128,6 +129,10 @@ const MIME_TYPES = {
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
+// Release check cache (1 hour TTL)
+let _releaseCache = null;
+let _releaseCacheTime = 0;
+
 function sendResponse(res, statusCode, contentType, data, extraHeaders = {}) {
   res.writeHead(statusCode, { 'Content-Type': contentType, ...extraHeaders });
   res.end(data);
@@ -202,6 +207,75 @@ const server = http.createServer((req, res) => {
         sendError(res, `Invalid JSON in request body: ${parseErr.message}`, 400);
       }
     });
+    return;
+  }
+
+  // CORS preflight for /api/*
+  if (req.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    res.end();
+    return;
+  }
+
+  // GET /api/auth - OpenClaw auth status
+  if (req.method === 'GET' && pathname === '/api/auth') {
+    try {
+      const home = os.homedir();
+      const configPath = path.join(home, '.openclaw', 'openclaw.json');
+      const authProfilesPath = path.join(home, '.openclaw', 'agents', 'main', 'agent', 'auth-profiles.json');
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const authProfiles = JSON.parse(fs.readFileSync(authProfilesPath, 'utf8'));
+
+      // Get primary anthropic profile
+      const anthropicOrder = config.auth?.order?.anthropic || [];
+      const primaryId = anthropicOrder[0] || 'default';
+      const profileKey = `anthropic:${primaryId}`;
+      const profileType = authProfiles.profiles?.[profileKey]?.type;
+      const mode = profileType === 'token' ? 'Monthly' : 'API';
+
+      sendJson(res, 200, { status: 'ok', mode, primary: profileKey });
+    } catch (e) {
+      sendError(res, `Auth status error: ${e.message}`);
+    }
+    return;
+  }
+
+  // GET /api/releases - OpenClaw release info (cached 1hr)
+  if (req.method === 'GET' && pathname === '/api/releases') {
+    const now = Date.now();
+    if (_releaseCache && (now - _releaseCacheTime) < 3600000) {
+      sendJson(res, 200, _releaseCache);
+      return;
+    }
+    (async () => {
+      try {
+        let currentVersion = 'unknown';
+        try {
+          const pkgPath = require.resolve('openclaw/package.json');
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          currentVersion = pkg.version;
+        } catch (_) {}
+
+        const ghRes = await fetch('https://api.github.com/repos/openclaw/openclaw/releases/latest');
+        const ghData = await ghRes.json();
+        const result = {
+          status: 'ok',
+          current: currentVersion,
+          latest: ghData.tag_name,
+          latestUrl: ghData.html_url,
+          publishedAt: ghData.published_at
+        };
+        _releaseCache = result;
+        _releaseCacheTime = now;
+        sendJson(res, 200, result);
+      } catch (e) {
+        sendError(res, `Release check error: ${e.message}`);
+      }
+    })();
     return;
   }
 
