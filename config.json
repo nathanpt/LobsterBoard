@@ -302,47 +302,17 @@
       }
     },
     {
-      "id": "widget-25",
-      "type": "activity-list",
-      "x": 540,
-      "y": 740,
-      "width": 400,
-      "height": 300,
+      "id": "widget-30",
+      "type": "rss-ticker",
+      "x": 0,
+      "y": 1040,
+      "width": 1920,
+      "height": 40,
       "properties": {
-        "title": "Today",
-        "endpoint": "/api/activity",
+        "title": "RSS",
+        "feedUrl": "https://magazine.sebastianraschka.com/feed",
         "maxItems": 10,
-        "refreshInterval": 60,
-        "showHeader": true
-      }
-    },
-    {
-      "id": "widget-26",
-      "type": "cron-jobs",
-      "x": 1020,
-      "y": 260,
-      "width": 860,
-      "height": 360,
-      "properties": {
-        "title": "Cron",
-        "endpoint": "/api/cron",
-        "refreshInterval": 30,
-        "showHeader": true
-      }
-    },
-    {
-      "id": "widget-27",
-      "type": "system-log",
-      "x": 1020,
-      "y": 660,
-      "width": 860,
-      "height": 380,
-      "properties": {
-        "title": "System Log",
-        "endpoint": "/api/logs",
-        "maxLines": 50,
-        "refreshInterval": 10,
-        "showHeader": true
+        "refreshInterval": 600
       }
     }
   ]

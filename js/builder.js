@@ -690,6 +690,9 @@ function initProperties() {
   // Columns
   document.getElementById('prop-columns').addEventListener('change', onPropertyChange);
 
+  // Feed URL
+  document.getElementById('prop-feedurl').addEventListener('change', onPropertyChange);
+
   // Text header fields
   document.getElementById('prop-fontsize').addEventListener('change', onPropertyChange);
   document.getElementById('prop-fontcolor').addEventListener('input', onPropertyChange);
@@ -763,6 +766,7 @@ function showProperties(widget) {
   document.getElementById('prop-linethickness-group').style.display = 'none';
   document.getElementById('prop-showborder-group').style.display = 'none';
   document.getElementById('prop-columns-group').style.display = 'none';
+  document.getElementById('prop-feedurl-group').style.display = 'none';
 
   // Show text header fields
   if (widget.properties.fontSize !== undefined) {
@@ -791,9 +795,17 @@ function showProperties(widget) {
   }
 
   // Show columns field
-  if (widget.properties.columns !== undefined) {
+  const tpl = WIDGETS[widget.type];
+  if (widget.properties.columns !== undefined || (tpl && tpl.properties && tpl.properties.columns !== undefined)) {
     document.getElementById('prop-columns-group').style.display = 'block';
-    document.getElementById('prop-columns').value = widget.properties.columns || 1;
+    document.getElementById('prop-columns').value = widget.properties.columns || (tpl && tpl.properties && tpl.properties.columns) || 1;
+  }
+
+  // Show feed URL field
+  const tplFeed = WIDGETS[widget.type];
+  if (widget.properties.feedUrl !== undefined || (tplFeed && tplFeed.properties && tplFeed.properties.feedUrl !== undefined)) {
+    document.getElementById('prop-feedurl-group').style.display = 'block';
+    document.getElementById('prop-feedurl').value = widget.properties.feedUrl || (tplFeed && tplFeed.properties && tplFeed.properties.feedUrl) || '';
   }
 
   // Show location field (single)
@@ -1182,6 +1194,9 @@ function onPropertyChange(e) {
     case 'prop-columns':
       widget.properties.columns = parseInt(e.target.value) || 1;
       renderWidgetPreview(widget);
+      break;
+    case 'prop-feedurl':
+      widget.properties.feedUrl = e.target.value;
       break;
   }
 }

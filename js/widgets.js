@@ -484,7 +484,7 @@ const WIDGETS = {
     apiKeyName: 'OPENCLAW_API',
     properties: {
       title: 'Today',
-      endpoint: '/api/activity',
+      endpoint: '/api/today',
       maxItems: 10,
       refreshInterval: 60
     },
@@ -507,23 +507,36 @@ const WIDGETS = {
         </div>
       </div>`,
     generateJs: (props) => `
-      // Activity List Widget: ${props.id}
+      // Activity List Widget: ${props.id} (Today style)
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
-          const res = await fetch('${props.endpoint || '/api/activity'}');
-          const json = await res.json();
-          const data = json.data || json;
+          const res = await fetch('${props.endpoint || '/api/today'}');
+          const data = await res.json();
           const list = document.getElementById('${props.id}-list');
           const badge = document.getElementById('${props.id}-badge');
-          const items = data.items || [];
-          list.innerHTML = items.slice(0, ${props.maxItems || 10}).map(item => 
-            '<div class="list-item">' + item.text + '</div>'
-          ).join('');
-          badge.textContent = items.length + ' items';
-        } catch (e) {
-          console.error('Activity list widget error:', e);
-          document.getElementById('${props.id}-list').innerHTML = '<div class="list-item">—</div>';
-        }
+
+          if (data.date && badge) {
+            const d = new Date(data.date + 'T12:00:00');
+            badge.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          }
+
+          const activities = data.activities || [];
+          if (!activities.length) {
+            list.innerHTML = '<div style="padding:8px;color:#8b949e;font-size:calc(12px * var(--font-scale,1));">No activity yet today</div>';
+            return;
+          }
+
+          const fs = 'calc(12px * var(--font-scale, 1))';
+          list.innerHTML = activities.slice(0, ${props.maxItems || 10}).map(a => {
+            const icon = a.status === 'ok' ? '✓' : a.status === 'error' ? '❌' : '';
+            const text = (a.text || '').replace(/</g, '&lt;');
+            const source = (a.source || '').replace(/</g, '&lt;');
+            return '<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:4px 0;border-bottom:1px solid #30363d;font-size:' + fs + ';">' +
+              '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (a.icon || '') + ' ' + text + '</div>' +
+              '<div style="flex-shrink:0;font-size:0.85em;color:#8b949e;margin-left:8px;">' + icon + ' ' + source + '</div>' +
+            '</div>';
+          }).join('');
+        } catch (e) { console.error('Today widget error:', e); }
       }
       update_${props.id.replace(/-/g, '_')}();
       setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
@@ -609,14 +622,14 @@ const WIDGETS = {
     name: 'System Log',
     icon: '🔧',
     category: 'large',
-    description: 'Shows recent system logs from OpenClaw /api/logs endpoint.',
+    description: 'Shows recent system logs from OpenClaw /api/system-log endpoint.',
     defaultWidth: 500,
     defaultHeight: 400,
     hasApiKey: true,
     apiKeyName: 'OPENCLAW_API',
     properties: {
       title: 'System Log',
-      endpoint: '/api/logs',
+      endpoint: '/api/system-log',
       maxLines: 50,
       refreshInterval: 10
     },
@@ -632,43 +645,60 @@ const WIDGETS = {
           <span class="dash-card-badge" id="${props.id}-badge">—</span>
         </div>
         <div class="dash-card-body compact-list syslog-scroll" id="${props.id}-log">
-          <div class="log-line">[INFO] System started successfully</div>
-          <div class="log-line">[DEBUG] Loading configuration...</div>
-          <div class="log-line">[INFO] Connected to database</div>
-          <div class="log-line">[INFO] API server ready on :8080</div>
-          <div class="log-line">[DEBUG] Health check passed</div>
+          <div class="syslog-entry info"><span class="syslog-icon">●</span><span class="syslog-time">9:00am</span><span class="syslog-msg">System started</span><span class="syslog-cat">gateway</span></div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // System Log Widget: ${props.id}
+      function getLogIcon(level) {
+        if (level === 'ERROR') return '❌';
+        if (level === 'WARN') return '⚠️';
+        if (level === 'OK') return '✅';
+        return '●';
+      }
+      function getLogClass(level) {
+        if (level === 'ERROR') return 'error';
+        if (level === 'WARN') return 'warn';
+        if (level === 'OK') return 'ok';
+        return 'info';
+      }
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
-          const res = await fetch('${props.endpoint || '/api/logs'}');
+          const res = await fetch('${props.endpoint || '/api/system-log'}');
           const json = await res.json();
-          const lines = json.lines || [];
+          // Handle both new format (json.entries) and old format (json.lines)
+          let entries = json.entries || [];
+          if (!entries.length && json.lines && json.lines.length) {
+            entries = json.lines.map(line => {
+              let level = 'INFO';
+              if (/\\b(error|fatal)\\b/i.test(line)) level = 'ERROR';
+              else if (/\\bwarn/i.test(line)) level = 'WARN';
+              else if (/\\b(ok|success|ready|started)\\b/i.test(line)) level = 'OK';
+              return { time: new Date().toISOString(), level, category: 'system', message: line };
+            });
+          }
           const log = document.getElementById('${props.id}-log');
           const badge = document.getElementById('${props.id}-badge');
           const wasAtBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
-          log.innerHTML = lines.slice(-${props.maxLines || 50}).map(line => {
-            // Convert ISO timestamps to human-readable format
-            line = line.replace(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z?/g, function(match) {
-              try {
-                const d = new Date(match);
-                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
-                       d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-              } catch(e) { return match; }
-            });
-            const escaped = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            let cls = 'log-line';
-            if (/\\b(error|fatal)\\b/i.test(line)) cls += ' log-error';
-            else if (/\\bwarn/i.test(line)) cls += ' log-warn';
-            return '<div class="' + cls + '" style="font-family:monospace;font-size:calc(11px * var(--font-scale, 1));padding:1px 0;white-space:pre-wrap;word-break:break-all;">' + escaped + '</div>';
+          const errorCount = entries.filter(e => e.level === 'ERROR').length;
+          badge.textContent = errorCount > 0 ? errorCount + ' error' + (errorCount > 1 ? 's' : '') : entries.length + ' events';
+          badge.style.color = errorCount > 0 ? '#f85149' : '';
+          const fs = 'calc(11px * var(--font-scale, 1))';
+          log.innerHTML = entries.slice(0, ${props.maxLines || 50}).map(entry => {
+            const cls = getLogClass(entry.level);
+            const icon = getLogIcon(entry.level);
+            const time = entry.time ? new Date(entry.time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase() : '';
+            const msg = (entry.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const cat = (entry.category || '').replace(/</g, '&lt;');
+            return '<div class="syslog-entry ' + cls + '" style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;border-bottom:1px solid #30363d;font-size:' + fs + ';line-height:1.3;" title="' + msg + '">' +
+              '<span class="syslog-icon" style="flex-shrink:0;width:14px;text-align:center;font-size:10px;">' + icon + '</span>' +
+              '<span class="syslog-time" style="flex-shrink:0;color:#8b949e;font-size:10px;font-family:monospace;min-width:55px;">' + time + '</span>' +
+              '<span class="syslog-msg" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (cls === 'error' ? '#f85149' : cls === 'warn' ? '#d29922' : cls === 'ok' ? '#3fb950' : '#c9d1d9') + ';">' + msg + '</span>' +
+              '<span class="syslog-cat" style="flex-shrink:0;font-size:9px;padding:1px 4px;border-radius:3px;background:#161b22;color:#8b949e;font-family:monospace;">' + cat + '</span>' +
+            '</div>';
           }).join('');
-          badge.textContent = lines.length + ' lines';
           if (wasAtBottom) log.scrollTop = log.scrollHeight;
         } catch (e) {
           console.error('System log widget error:', e);
-          document.getElementById('${props.id}-log').innerHTML = '<div class="log-line">Failed to load logs</div>';
         }
       }
       update_${props.id.replace(/-/g, '_')}();
@@ -824,50 +854,6 @@ const WIDGETS = {
         <div style="border-left:${props.lineThickness || 2}px solid ${props.lineColor || '#30363d'};height:100%;flex-shrink:0;"></div>
       </div>`,
     generateJs: () => ''
-  },
-
-  'news-ticker': {
-    name: 'News Ticker',
-    icon: '📰',
-    category: 'bar',
-    description: 'Scrolling news headlines. Requires NewsAPI key.',
-    defaultWidth: 1920,
-    defaultHeight: 40,
-    hasApiKey: true,
-    apiKeyName: 'NEWS_API_KEY',
-    properties: {
-      title: 'News',
-      category: 'technology',
-      refreshInterval: 1800
-    },
-    preview: `<div style="background:#161b22;padding:8px;font-size:11px;overflow:hidden;">
-      📰 Breaking: Tech news headline scrolling by...
-    </div>`,
-    generateHtml: (props) => `
-      <section class="news-ticker-wrap" id="widget-${props.id}">
-        <span class="ticker-label">📰</span>
-        <div class="ticker-track">
-          <div class="ticker-content" id="${props.id}-ticker">Loading news...</div>
-        </div>
-      </section>`,
-    generateJs: (props) => `
-      // News Ticker Widget: ${props.id}
-      async function update_${props.id.replace(/-/g, '_')}() {
-        try {
-          // Replace with your news API
-          const apiKey = 'YOUR_NEWS_API_KEY';
-          const res = await fetch(\`https://newsapi.org/v2/top-headlines?category=${props.category || 'technology'}&apiKey=\${apiKey}\`);
-          const data = await res.json();
-          const headlines = data.articles.map(a => a.title).join(' ••• ');
-          document.getElementById('${props.id}-ticker').textContent = headlines;
-        } catch (e) {
-          console.error('News ticker widget error:', e);
-          document.getElementById('${props.id}-ticker').textContent = '—';
-        }
-      }
-      update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 1800) * 1000});
-    `
   },
 
   // ─────────────────────────────────────────────
@@ -2455,90 +2441,53 @@ const WIDGETS = {
 
   'rss-ticker': {
     name: 'RSS Ticker',
-    icon: '📜',
+    icon: '📡',
     category: 'bar',
-    description: 'Scrolling RSS feed headlines. May need CORS proxy.',
+    description: 'Scrolling RSS feed headlines. Add any RSS feed URL.',
     defaultWidth: 1920,
     defaultHeight: 40,
     hasApiKey: false,
     properties: {
       title: 'RSS',
       feedUrl: 'https://example.com/feed.xml',
+      maxItems: 10,
       refreshInterval: 600
     },
     preview: `<div style="background:#161b22;padding:8px;font-size:11px;overflow:hidden;">
-      📜 RSS headline scrolling across the screen...
+      📡 Latest headlines scrolling by...
     </div>`,
     generateHtml: (props) => `
       <section class="news-ticker-wrap" id="widget-${props.id}">
-        <span class="ticker-label">📜</span>
+        <span class="ticker-label">📡</span>
         <div class="ticker-track">
-          <div class="ticker-content" id="${props.id}-ticker">Loading RSS feed...</div>
+          <div class="ticker-content" id="${props.id}-ticker">Loading feed...</div>
         </div>
       </section>`,
     generateJs: (props) => `
-      // RSS Ticker Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
+        var el = document.getElementById('${props.id}-ticker');
+        if (!el) el = document.querySelector('.ticker-content');
+        if (!el) return;
         try {
-          const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('${props.feedUrl || ''}'));
-          const data = await res.json();
-          const headlines = (data.items || []).map(item => item.title).join(' ••• ');
-          document.getElementById('${props.id}-ticker').textContent = headlines || 'No items found';
+          var feedUrl = '${props.feedUrl || ''}';
+          if (!feedUrl || feedUrl === 'https://example.com/feed.xml') {
+            el.textContent = 'Set a Feed URL in Edit Mode (Ctrl+E)';
+            return;
+          }
+          var res = await fetch('/api/rss?url=' + encodeURIComponent(feedUrl));
+          if (!res.ok) { el.textContent = 'Feed error: ' + res.status; return; }
+          var xml = await res.text();
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(xml, 'text/xml');
+          var items = Array.from(doc.querySelectorAll('item')).slice(0, ${props.maxItems || 10});
+          if (!items.length) { el.textContent = 'No items found in feed'; return; }
+          el.innerHTML = items.map(function(item) {
+            var title = (item.querySelector('title') ? item.querySelector('title').textContent : '').replace(/</g,'&lt;');
+            var link = item.querySelector('link') ? item.querySelector('link').textContent : '#';
+            return '<a href="' + link + '" target="_blank" class="ticker-link">' + title + '</a>';
+          }).join('<span class="ticker-sep"> \\u2022\\u2022\\u2022 </span>');
         } catch (e) {
-          console.error('RSS ticker widget error:', e);
-          document.getElementById('${props.id}-ticker').textContent = '—';
-        }
-      }
-      update_${props.id.replace(/-/g, '_')}();
-      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 600) * 1000});
-    `
-  },
-
-  'rss-feed': {
-    name: 'RSS Feed',
-    icon: '📡',
-    category: 'large',
-    description: 'Displays RSS feed items in a list. May need CORS proxy.',
-    defaultWidth: 400,
-    defaultHeight: 300,
-    hasApiKey: false,
-    properties: {
-      title: 'RSS Feed',
-      feedUrl: 'https://example.com/feed.xml',
-      maxItems: 5,
-      refreshInterval: 600
-    },
-    preview: `<div style="padding:4px;font-size:11px;">
-      <div style="padding:4px 0;">• Latest article title</div>
-      <div style="padding:4px 0;">• Another article</div>
-      <div style="padding:4px 0;">• Third article</div>
-    </div>`,
-    generateHtml: (props) => `
-      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
-        <div class="dash-card-head">
-          <span class="dash-card-title">📡 ${props.title || 'RSS Feed'}</span>
-        </div>
-        <div class="dash-card-body compact-list" id="${props.id}-items">
-          <div class="rss-item">• Latest tech news headline</div>
-          <div class="rss-item">• Another interesting article</div>
-          <div class="rss-item">• Breaking: Major announcement</div>
-        </div>
-      </div>`,
-    generateJs: (props) => `
-      // RSS Feed Widget: ${props.id}
-      // Note: RSS feeds require a CORS proxy or server-side fetch
-      async function update_${props.id.replace(/-/g, '_')}() {
-        try {
-          // Use a CORS proxy like rss2json.com
-          const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('${props.feedUrl || ''}'));
-          const data = await res.json();
-          const container = document.getElementById('${props.id}-items');
-          container.innerHTML = (data.items || []).slice(0, ${props.maxItems || 5}).map(item => 
-            '<a href="' + item.link + '" class="rss-item" target="_blank">' + item.title + '</a>'
-          ).join('');
-        } catch (e) {
-          console.error('RSS feed widget error:', e);
-          document.getElementById('${props.id}-items').innerHTML = '<div class="rss-item">—</div>';
+          if (el) el.textContent = 'Failed to load feed';
         }
       }
       update_${props.id.replace(/-/g, '_')}();

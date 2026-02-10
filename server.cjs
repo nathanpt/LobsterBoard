@@ -281,6 +281,40 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // GET /api/system-log - Structured system log entries
+  if (req.method === 'GET' && pathname === '/api/system-log') {
+    try {
+      const logPath = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
+      if (!fs.existsSync(logPath)) {
+        sendJson(res, 200, { status: 'ok', entries: [] });
+        return;
+      }
+      const content = fs.readFileSync(logPath, 'utf8');
+      const lines = content.split('\n').filter(l => l.trim());
+      const entries = lines.slice(-50).reverse().map(line => {
+        let level = 'INFO';
+        let category = 'system';
+        if (/\b(error|fatal)\b/i.test(line)) level = 'ERROR';
+        else if (/\bwarn/i.test(line)) level = 'WARN';
+        else if (/\b(ok|success|ready|started|connected)\b/i.test(line)) level = 'OK';
+        const tsMatch = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/);
+        const time = tsMatch ? tsMatch[1] : new Date().toISOString();
+        if (/\b(cron|schedule)\b/i.test(line)) category = 'cron';
+        else if (/\b(auth|login|token)\b/i.test(line)) category = 'auth';
+        else if (/\b(session|agent)\b/i.test(line)) category = 'session';
+        else if (/\b(exec|command)\b/i.test(line)) category = 'exec';
+        else if (/\b(file|read|write)\b/i.test(line)) category = 'file';
+        else if (/\b(restart|gateway|start)\b/i.test(line)) category = 'gateway';
+        let message = line.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\s*/, '').trim();
+        return { time, level, category, message };
+      });
+      sendJson(res, 200, { status: 'ok', entries });
+    } catch (e) {
+      sendJson(res, 200, { status: 'ok', entries: [{ time: new Date().toISOString(), level: 'ERROR', category: 'system', message: 'Error reading log: ' + e.message }] });
+    }
+    return;
+  }
+
   // GET /api/logs - Read last 50 lines from gateway log
   if (req.method === 'GET' && pathname === '/api/logs') {
     const logFile = path.join(os.homedir(), '.openclaw', 'logs', 'gateway.log');
@@ -361,6 +395,141 @@ const server = http.createServer((req, res) => {
         sendError(res, `Release check error: ${e.message}`);
       }
     })();
+    return;
+  }
+
+  // GET /api/today - Today's activity summary (port 3000 style)
+  if (req.method === 'GET' && pathname === '/api/today') {
+    try {
+      const { execSync } = require('child_process');
+      const now = new Date();
+      const dateStr = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+      const activities = [];
+
+      // 1. Today's memory file headers
+      const memoryDir = path.join(os.homedir(), 'clawd', 'memory');
+      const todayFile = path.join(memoryDir, `${dateStr}.md`);
+      if (fs.existsSync(todayFile)) {
+        const content = fs.readFileSync(todayFile, 'utf8');
+        content.split('\n').forEach(line => {
+          if (line.startsWith('#')) {
+            const text = line.replace(/^#+\s*/, '').trim();
+            if (text && !/session notes/i.test(text)) {
+              activities.push({ type: 'note', icon: '📝', text, source: 'memory' });
+            }
+          }
+        });
+      }
+
+      // 2. Git commits from today
+      try {
+        const commits = execSync(
+          `cd ~/clawd && git log --since="today 00:00" --pretty=format:"%s" 2>/dev/null`,
+          { encoding: 'utf8', timeout: 5000 }
+        ).trim();
+        if (commits) {
+          commits.split('\n').slice(0, 10).forEach(msg => {
+            if (msg.trim()) {
+              activities.push({ type: 'commit', icon: '💾', text: msg.trim(), source: 'git' });
+            }
+          });
+        }
+      } catch (_) {}
+
+      // 3. Cron job runs from today
+      const cronFile = path.join(os.homedir(), '.openclaw', 'cron', 'jobs.json');
+      if (fs.existsSync(cronFile)) {
+        try {
+          const cronData = JSON.parse(fs.readFileSync(cronFile, 'utf8'));
+          (cronData.jobs || []).forEach(job => {
+            const lastMs = job.state && job.state.lastRunAtMs;
+            if (lastMs) {
+              const runDate = new Date(lastMs);
+              const runDateStr = [runDate.getFullYear(), String(runDate.getMonth()+1).padStart(2,'0'), String(runDate.getDate()).padStart(2,'0')].join('-');
+              if (runDateStr === dateStr) {
+                activities.push({ type: 'cron', icon: '⏰', text: `${job.name} ran`, source: 'cron', status: job.state.lastStatus || 'ok' });
+              }
+            }
+          });
+        } catch (_) {}
+      }
+
+      // Dedupe
+      const seen = new Set();
+      const unique = activities.filter(a => {
+        const key = a.text.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      sendJson(res, 200, { date: dateStr, activities: unique.slice(0, 15), count: unique.length });
+    } catch (e) {
+      const now = new Date();
+      const dateStr = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+      sendJson(res, 200, { date: dateStr, activities: [], count: 0, error: e.message });
+    }
+    return;
+  }
+
+  // GET /api/activity - Recent activity from today's memory file
+  if (req.method === 'GET' && pathname === '/api/activity') {
+    try {
+      const now = new Date();
+      // Use local date (EST), not UTC
+      const dateStr = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+      const memoryDir = path.join(__dirname, '..', 'memory');
+      const todayFile = path.join(memoryDir, `${dateStr}.md`);
+      const items = [];
+      if (fs.existsSync(todayFile)) {
+        const content = fs.readFileSync(todayFile, 'utf8');
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // Extract bullet points and headings as activity items
+          if (trimmed.startsWith('- ') && trimmed.length > 4) {
+            items.push({ text: trimmed.slice(2), time: dateStr });
+          } else if (trimmed.startsWith('## ') && trimmed.length > 4) {
+            items.push({ text: '📌 ' + trimmed.slice(3), time: dateStr });
+          }
+        }
+      }
+      // If no memory file, show a placeholder
+      if (items.length === 0) {
+        items.push({ text: 'No activity logged yet today.' });
+      }
+      sendJson(res, 200, { items: items.slice(-20).reverse() });
+    } catch (e) {
+      sendJson(res, 200, { items: [{ text: 'Error loading activity: ' + e.message }] });
+    }
+    return;
+  }
+
+  // GET /api/rss?url=<feedUrl> - Server-side RSS proxy
+  if (req.method === 'GET' && pathname === '/api/rss') {
+    const feedUrl = parsedUrl.searchParams.get('url');
+    if (!feedUrl) { sendError(res, 'Missing url parameter', 400); return; }
+    try {
+      const https = require('https');
+      const http2 = require('http');
+      function fetchFeed(url, redirects) {
+        if (redirects > 3) { sendError(res, 'Too many redirects'); return; }
+        const mod = url.startsWith('https') ? https : http2;
+        const req2 = mod.get(url, { headers: { 'User-Agent': 'LobsterBoard/1.0' }, timeout: 15000 }, (proxyRes) => {
+          if ([301, 302, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
+            proxyRes.resume();
+            fetchFeed(proxyRes.headers.location, redirects + 1);
+            return;
+          }
+          let body = '';
+          proxyRes.on('data', c => { body += c; if (body.length > 5000000) proxyRes.destroy(); });
+          proxyRes.on('end', () => { sendResponse(res, 200, 'application/xml', body, { 'Access-Control-Allow-Origin': '*' }); });
+        });
+        req2.on('error', e => sendError(res, e.message));
+        req2.on('timeout', () => { req2.destroy(); sendError(res, 'Feed request timed out'); });
+      }
+      fetchFeed(feedUrl, 0);
+    } catch (e) { sendError(res, e.message); }
     return;
   }
 
