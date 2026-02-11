@@ -4,6 +4,8 @@ A self-hosted, drag-and-drop dashboard builder with live system monitoring, dark
 
 ![LobsterBoard](lobsterboard-logo-final.png)
 
+![LobsterBoard Dashboard Example](screenshot.jpg)
+
 ## Quick Start
 
 ### Option A: npm install

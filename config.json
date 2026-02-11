@@ -340,6 +340,46 @@
         "maxEvents": 5,
         "refreshInterval": 300
       }
+    },
+    {
+      "id": "widget-33",
+      "type": "quick-links",
+      "x": 1080,
+      "y": 580,
+      "width": 360,
+      "height": 140,
+      "properties": {
+        "title": "Quick Links",
+        "columns": 2,
+        "links": [
+          {
+            "name": "reddit",
+            "url": "https://reddit.com"
+          },
+          {
+            "name": "OpenClaw",
+            "url": "https://openclaw.ai/"
+          }
+        ]
+      }
+    },
+    {
+      "id": "widget-34",
+      "type": "quick-links",
+      "x": 1460,
+      "y": 580,
+      "width": 400,
+      "height": 140,
+      "properties": {
+        "title": "Quick Links",
+        "columns": 1,
+        "links": [
+          {
+            "name": "LobsterBoard",
+            "url": "https://github.com/Curbob/LobsterBoard"
+          }
+        ]
+      }
     }
   ]
 }
