@@ -883,7 +883,7 @@ const WIDGETS = {
     category: 'small',
     description: 'Shows Anthropic Claude API usage and costs. Requires an Admin API key.',
     defaultWidth: 220,
-    defaultHeight: 120,
+    defaultHeight: 160,
     hasApiKey: true,
     apiKeyName: 'ANTHROPIC_ADMIN_KEY',
     hideApiKeyVar: true,
@@ -894,47 +894,44 @@ const WIDGETS = {
     },
     preview: `<div style="text-align:center;padding:8px;">
       <div style="font-size:11px;color:#a371f7;">Claude</div>
-      <div style="font-size:20px;">125K</div>
-      <div style="font-size:10px;color:#8b949e;">$4.20 today</div>
+      <div style="font-size:18px;">125K tokens</div>
+      <div style="font-size:11px;color:#8b949e;">$4.20 today</div>
+      <div style="font-size:10px;color:#6e7681;margin-top:4px;">Week $28.50 · Month $95.00</div>
     </div>`,
     generateHtml: (props) => `
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
         <div class="dash-card-head">
           <span class="dash-card-title">🟣 ${props.title || 'Claude'}</span>
         </div>
-        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value" id="${props.id}-tokens" style="color:#a371f7;">—</div>
-          <div class="kpi-label" id="${props.id}-cost">tokens today</div>
-          <div id="${props.id}-tooltip" style="display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;white-space:nowrap;z-index:100;"></div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+          <div class="kpi-value" id="${props.id}-tokens" style="color:#a371f7;font-size:22px;">—</div>
+          <div class="kpi-label" id="${props.id}-cost" style="font-size:12px;">today</div>
+          <div id="${props.id}-period" style="font-size:10px;color:#6e7681;margin-top:4px;text-align:center;"></div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // Claude Usage Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
           const res = await fetch('/api/usage/claude');
           const data = await res.json();
           const tokensEl = document.getElementById('${props.id}-tokens');
           const costEl = document.getElementById('${props.id}-cost');
-          const tooltipEl = document.getElementById('${props.id}-tooltip');
+          const periodEl = document.getElementById('${props.id}-period');
           if (data.error) {
             tokensEl.textContent = '⚠️';
             tokensEl.style.fontSize = '18px';
-            costEl.textContent = data.error.includes('not set') ? 'No API Key' : data.error;
+            costEl.textContent = data.error.includes('API key') ? 'No API Key' : data.error;
+            periodEl.textContent = '';
             return;
           }
+          const fmt = (n) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString();
           const tokens = data.tokens || 0;
-          tokensEl.textContent = tokens >= 1000000 ? (tokens / 1000000).toFixed(1) + 'M' : tokens >= 1000 ? (tokens / 1000).toFixed(1) + 'K' : tokens.toString();
-          tokensEl.style.fontSize = '';
+          tokensEl.textContent = fmt(tokens) + ' tokens';
           costEl.textContent = '$' + (data.cost || 0).toFixed(2) + ' today';
-          // Build model breakdown tooltip
-          if (data.models && data.models.length) {
-            const lines = data.models.map(m => m.name + ': ' + (m.tokens/1000).toFixed(1) + 'K · $' + m.cost.toFixed(2));
-            tooltipEl.innerHTML = lines.join('<br>');
-            tokensEl.parentElement.style.position = 'relative';
-            tokensEl.parentElement.onmouseenter = () => tooltipEl.style.display = 'block';
-            tokensEl.parentElement.onmouseleave = () => tooltipEl.style.display = 'none';
-          }
+          const parts = [];
+          if (data.week) parts.push('Week $' + data.week.cost.toFixed(2));
+          if (data.month) parts.push('Month $' + data.month.cost.toFixed(2));
+          periodEl.textContent = parts.join(' · ');
         } catch (e) {
           document.getElementById('${props.id}-tokens').textContent = '—';
           document.getElementById('${props.id}-cost').textContent = 'Error';
@@ -951,7 +948,7 @@ const WIDGETS = {
     category: 'small',
     description: 'Shows OpenAI API usage and costs. Requires API key with Usage permission.',
     defaultWidth: 220,
-    defaultHeight: 120,
+    defaultHeight: 160,
     hasApiKey: true,
     apiKeyName: 'OPENAI_API_KEY',
     hideApiKeyVar: true,
@@ -962,46 +959,42 @@ const WIDGETS = {
     },
     preview: `<div style="text-align:center;padding:8px;">
       <div style="font-size:11px;color:#3fb950;">OpenAI</div>
-      <div style="font-size:20px;">$1.50</div>
-      <div style="font-size:10px;color:#8b949e;">cost today</div>
+      <div style="font-size:18px;">$1.50</div>
+      <div style="font-size:11px;color:#8b949e;">cost today</div>
+      <div style="font-size:10px;color:#6e7681;margin-top:4px;">Week $8.20 · Month $32.00</div>
     </div>`,
     generateHtml: (props) => `
       <div class="dash-card" id="widget-${props.id}" style="height:100%;">
         <div class="dash-card-head">
           <span class="dash-card-title">🟢 ${props.title || 'OpenAI'}</span>
         </div>
-        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value" id="${props.id}-cost-main" style="color:#3fb950;">—</div>
-          <div class="kpi-label" id="${props.id}-subtitle">cost today</div>
-          <div id="${props.id}-tooltip" style="display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;white-space:nowrap;z-index:100;"></div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+          <div class="kpi-value" id="${props.id}-cost-main" style="color:#3fb950;font-size:22px;">—</div>
+          <div class="kpi-label" id="${props.id}-subtitle" style="font-size:12px;">today</div>
+          <div id="${props.id}-period" style="font-size:10px;color:#6e7681;margin-top:4px;text-align:center;"></div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // OpenAI Usage Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
         try {
           const res = await fetch('/api/usage/openai');
           const data = await res.json();
           const costEl = document.getElementById('${props.id}-cost-main');
           const subEl = document.getElementById('${props.id}-subtitle');
-          const tooltipEl = document.getElementById('${props.id}-tooltip');
+          const periodEl = document.getElementById('${props.id}-period');
           if (data.error) {
             costEl.textContent = '⚠️';
             costEl.style.fontSize = '18px';
-            subEl.textContent = data.error.includes('not set') ? 'No API Key' : data.error;
+            subEl.textContent = data.error.includes('API key') ? 'No API Key' : data.error;
+            periodEl.textContent = '';
             return;
           }
           costEl.textContent = '$' + (data.cost || 0).toFixed(2);
-          costEl.style.fontSize = '';
           subEl.textContent = 'cost today';
-          // Build model breakdown tooltip
-          if (data.models && data.models.length) {
-            const lines = data.models.map(m => m.name + ': $' + m.cost.toFixed(4));
-            tooltipEl.innerHTML = lines.join('<br>');
-            costEl.parentElement.style.position = 'relative';
-            costEl.parentElement.onmouseenter = () => tooltipEl.style.display = 'block';
-            costEl.parentElement.onmouseleave = () => tooltipEl.style.display = 'none';
-          }
+          const parts = [];
+          if (data.week) parts.push('Week $' + data.week.cost.toFixed(2));
+          if (data.month) parts.push('Month $' + data.month.cost.toFixed(2));
+          periodEl.textContent = parts.join(' · ');
         } catch (e) {
           document.getElementById('${props.id}-cost-main').textContent = '—';
           document.getElementById('${props.id}-subtitle').textContent = 'Error';

@@ -658,28 +658,53 @@ const server = http.createServer((req, res) => {
         const now = new Date();
         const today = now.toISOString().slice(0, 10);
         const tomorrow = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
-        const url = `https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=${today}T00:00:00Z&ending_at=${tomorrow}T00:00:00Z&bucket_width=1d`;
-        const resp = await fetch(url, {
-          headers: { 'anthropic-version': '2023-06-01', 'x-api-key': apiKey }
-        });
-        const data = await resp.json();
-        if (!resp.ok) { sendJson(res, 200, { error: data.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
-        // Aggregate from data array
-        let totalTokens = 0, totalCost = 0;
-        const modelMap = {};
-        for (const bucket of (data.data || [])) {
-          const input = bucket.input_tokens || 0;
-          const output = bucket.output_tokens || 0;
-          const tokens = input + output;
-          const cost = (bucket.input_cost || 0) + (bucket.output_cost || 0);
-          totalTokens += tokens;
-          totalCost += cost;
-          const model = bucket.model || 'unknown';
-          if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
-          modelMap[model].tokens += tokens;
-          modelMap[model].cost += cost;
+        // Week: Monday of current week
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const weekStart = new Date(now.getTime() - mondayOffset * 86400000).toISOString().slice(0, 10);
+        // Month: 1st of current month
+        const monthStart = today.slice(0, 8) + '01';
+        const headers = { 'anthropic-version': '2023-06-01', 'x-api-key': apiKey };
+        const base = 'https://api.anthropic.com/v1/organizations/usage_report/messages';
+
+        function aggregateBuckets(data) {
+          let totalTokens = 0, totalCost = 0;
+          const modelMap = {};
+          for (const bucket of (data.data || [])) {
+            const input = bucket.input_tokens || 0;
+            const output = bucket.output_tokens || 0;
+            const tokens = input + output;
+            const cost = (bucket.input_cost || 0) + (bucket.output_cost || 0);
+            totalTokens += tokens;
+            totalCost += cost;
+            const model = bucket.model || 'unknown';
+            if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
+            modelMap[model].tokens += tokens;
+            modelMap[model].cost += cost;
+          }
+          return { tokens: totalTokens, cost: totalCost, models: Object.values(modelMap) };
         }
-        sendJson(res, 200, { tokens: totalTokens, cost: totalCost, models: Object.values(modelMap) });
+
+        const [todayResp, weekResp, monthResp] = await Promise.all([
+          fetch(`${base}?starting_at=${today}T00:00:00Z&ending_at=${tomorrow}T00:00:00Z&bucket_width=1d&group_by[]=model`, { headers }),
+          fetch(`${base}?starting_at=${weekStart}T00:00:00Z&ending_at=${tomorrow}T00:00:00Z&bucket_width=1d&group_by[]=model`, { headers }),
+          fetch(`${base}?starting_at=${monthStart}T00:00:00Z&ending_at=${tomorrow}T00:00:00Z&bucket_width=1d&group_by[]=model`, { headers })
+        ]);
+
+        const todayData = await todayResp.json();
+        if (!todayResp.ok) { sendJson(res, 200, { error: todayData.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
+        const weekData = await weekResp.json();
+        const monthData = await monthResp.json();
+
+        const todayAgg = aggregateBuckets(todayData);
+        const weekAgg = aggregateBuckets(weekData);
+        const monthAgg = aggregateBuckets(monthData);
+
+        sendJson(res, 200, {
+          tokens: todayAgg.tokens, cost: todayAgg.cost, models: todayAgg.models,
+          week: { tokens: weekAgg.tokens, cost: weekAgg.cost },
+          month: { tokens: monthAgg.tokens, cost: monthAgg.cost }
+        });
       } catch (e) {
         sendJson(res, 200, { error: e.message, tokens: 0, cost: 0, models: [] });
       }
@@ -702,25 +727,48 @@ const server = http.createServer((req, res) => {
       try {
         const now = new Date();
         const todayUnix = Math.floor(new Date(now.toISOString().slice(0, 10) + 'T00:00:00Z').getTime() / 1000);
-        const url = `https://api.openai.com/v1/organization/costs?start_time=${todayUnix}&bucket_width=1d`;
-        const resp = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        });
-        const data = await resp.json();
-        if (!resp.ok) { sendJson(res, 200, { error: data.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
-        // Sum costs across buckets
-        let totalCost = 0;
-        const modelMap = {};
-        for (const bucket of (data.data || [])) {
-          for (const lineItem of (bucket.results || [])) {
-            const cost = (lineItem.amount?.value || 0);
-            totalCost += cost;
-            const model = lineItem.line_item || 'unknown';
-            if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
-            modelMap[model].cost += cost;
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const weekStartUnix = todayUnix - mondayOffset * 86400;
+        const monthStartUnix = Math.floor(new Date(now.toISOString().slice(0, 8) + '01T00:00:00Z').getTime() / 1000);
+        const headers = { 'Authorization': `Bearer ${apiKey}` };
+        const base = 'https://api.openai.com/v1/organization/costs';
+
+        function aggregateOpenAI(data) {
+          let totalCost = 0;
+          const modelMap = {};
+          for (const bucket of (data.data || [])) {
+            for (const lineItem of (bucket.results || [])) {
+              const cost = (lineItem.amount?.value || 0);
+              totalCost += cost;
+              const model = lineItem.line_item || 'unknown';
+              if (!modelMap[model]) modelMap[model] = { name: model, tokens: 0, cost: 0 };
+              modelMap[model].cost += cost;
+            }
           }
+          return { cost: totalCost / 100, models: Object.values(modelMap).map(m => ({ ...m, cost: m.cost / 100 })) };
         }
-        sendJson(res, 200, { tokens: 0, cost: totalCost / 100, models: Object.values(modelMap).map(m => ({ ...m, cost: m.cost / 100 })) });
+
+        const [todayResp, weekResp, monthResp] = await Promise.all([
+          fetch(`${base}?start_time=${todayUnix}&bucket_width=1d`, { headers }),
+          fetch(`${base}?start_time=${weekStartUnix}&bucket_width=1d`, { headers }),
+          fetch(`${base}?start_time=${monthStartUnix}&bucket_width=1d`, { headers })
+        ]);
+
+        const todayData = await todayResp.json();
+        if (!todayResp.ok) { sendJson(res, 200, { error: todayData.error?.message || 'API error', tokens: 0, cost: 0, models: [] }); return; }
+        const weekData = await weekResp.json();
+        const monthData = await monthResp.json();
+
+        const todayAgg = aggregateOpenAI(todayData);
+        const weekAgg = aggregateOpenAI(weekData);
+        const monthAgg = aggregateOpenAI(monthData);
+
+        sendJson(res, 200, {
+          tokens: 0, cost: todayAgg.cost, models: todayAgg.models,
+          week: { tokens: 0, cost: weekAgg.cost },
+          month: { tokens: 0, cost: monthAgg.cost }
+        });
       } catch (e) {
         sendJson(res, 200, { error: e.message, tokens: 0, cost: 0, models: [] });
       }
