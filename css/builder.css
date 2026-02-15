@@ -1145,14 +1145,30 @@ body[data-mode="edit"] .edit-layout-btn {
 }
 
 /* Text-header widgets: hide card chrome when showBorder is false */
-.placed-widget[data-type="text-header"][data-show-border="false"] {
+.placed-widget[data-show-border="false"] {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
 }
 
-.placed-widget[data-type="text-header"][data-show-border="false"] .widget-render {
+.placed-widget[data-show-border="false"] .widget-render {
   padding: 0 !important;
   margin: 0 !important;
 }
+
+.placed-widget[data-show-border="false"] .dash-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.placed-widget[data-show-border="false"] .dash-card-head {
+  display: none !important;
+}
+
+.placed-widget[data-show-border="false"] .dash-card-body {
+  padding: 0 !important;
+}
+
+/* no-bg removed — using data-show-border instead */

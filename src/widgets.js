@@ -423,9 +423,9 @@ export const WIDGETS = {
           const list = document.getElementById('${props.id}-list');
           if (!pages.length) { list.innerHTML = '<span class="pages-menu-item">No pages found</span>'; return; }
           list.innerHTML = pages.map(p =>
-            '<a class="pages-menu-item" href="/pages/' + p.id + '" title="' + (p.description || p.name) + '">' +
+            '<a class="pages-menu-item" href="/pages/' + p.id + '" title="' + (p.description || p.title || p.name || '') + '">' +
             '<span class="pages-menu-icon">' + (p.icon || '📄') + '</span>' +
-            '<span>' + p.name + '</span></a>'
+            '<span>' + (p.title || p.name || p.id) + '</span></a>'
           ).join('');
         } catch (e) {
           console.error('Pages menu widget error:', e);

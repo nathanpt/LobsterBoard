@@ -317,15 +317,23 @@ const WIDGETS = {
         <div class="dash-card-head">
           <span class="dash-card-title">🦞 ${props.title || 'OpenClaw'}</span>
         </div>
-        <div class="dash-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-          <div class="kpi-value" id="${props.id}-version" style="font-size:16px;">—</div>
-          <div class="kpi-label" id="${props.id}-status">Checking...</div>
+        <div class="dash-card-body" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+          <span style="font-size:20px;">📦</span>
+          <div>
+            <div id="${props.id}-versions" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#c9d1d9;">
+              <span id="${props.id}-current">—</span>
+              <span id="${props.id}-arrow" style="color:#6e7681;display:none;">→</span>
+              <span id="${props.id}-latest" style="display:none;"></span>
+            </div>
+            <div id="${props.id}-status" style="font-size:11px;margin-top:2px;">Checking...</div>
+          </div>
         </div>
       </div>`,
     generateJs: (props) => `
-      // OpenClaw Release Widget: ${props.id}
       async function update_${props.id.replace(/-/g, '_')}() {
-        const versionEl = document.getElementById('${props.id}-version');
+        const currentEl = document.getElementById('${props.id}-current');
+        const arrowEl = document.getElementById('${props.id}-arrow');
+        const latestEl = document.getElementById('${props.id}-latest');
         const statusEl = document.getElementById('${props.id}-status');
         
         try {
@@ -333,25 +341,29 @@ const WIDGETS = {
           const data = await res.json();
           if (data.status !== 'ok') throw new Error(data.message);
           
-          const currentVersion = (data.current || '').replace(/^v/, '');
-          const latestVersion = (data.latest || '').replace(/^v/, '');
+          const cur = (data.current || '').replace(/^v/, '');
+          const lat = (data.latest || '').replace(/^v/, '');
           
-          if (!currentVersion || currentVersion === 'unknown') {
-            versionEl.textContent = 'v' + latestVersion;
+          if (!cur || cur === 'unknown') {
+            currentEl.textContent = 'v' + lat;
             statusEl.textContent = 'Latest release';
-          } else if (currentVersion === latestVersion) {
-            versionEl.textContent = 'v' + currentVersion;
-            versionEl.style.color = 'var(--accent-green)';
+            statusEl.style.color = '#8b949e';
+          } else if (cur === lat) {
+            currentEl.textContent = 'v' + cur;
+            currentEl.style.color = '#3fb950';
             statusEl.innerHTML = '✓ Up to date';
-            statusEl.style.color = 'var(--accent-green)';
+            statusEl.style.color = '#3fb950';
           } else {
-            versionEl.textContent = 'v' + latestVersion + ' available';
-            versionEl.style.color = 'var(--accent-blue)';
-            statusEl.innerHTML = '⬆ Running v' + currentVersion;
-            statusEl.style.color = 'var(--accent-blue)';
+            currentEl.textContent = cur;
+            currentEl.style.color = '#c9d1d9';
+            arrowEl.style.display = 'inline';
+            latestEl.style.display = 'inline';
+            latestEl.textContent = 'v' + lat;
+            latestEl.style.color = '#58a6ff';
+            statusEl.innerHTML = '<span style="color:#d29922;">Update available</span>';
           }
         } catch (e) {
-          versionEl.textContent = '—';
+          currentEl.textContent = '—';
           statusEl.textContent = 'Error';
           console.error('OpenClaw Release widget error:', e);
         }
@@ -2306,6 +2318,65 @@ const WIDGETS = {
     }
   },
 
+  'image-latest': {
+    name: 'Latest Image',
+    icon: '🆕',
+    category: 'large',
+    description: 'Shows the newest image from a directory. Auto-refreshes.',
+    defaultWidth: 300,
+    defaultHeight: 220,
+    hasApiKey: false,
+    properties: {
+      title: 'Latest Image',
+      directoryPath: '',
+      refreshInterval: 60
+    },
+    preview: `<div style="background:#21262d;height:100%;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px;">
+      🆕 Latest Image
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🆕 ${props.title || 'Latest Image'}</span>
+          <span id="${props.id}-filename" style="font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <div class="dash-card-body" style="padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);">
+          <img id="${props.id}-img" src="" style="width:100%;height:100%;object-fit:contain;display:none;">
+          <span id="${props.id}-placeholder" style="color:var(--text-muted);font-size:12px;">🆕 ${props.directoryPath ? 'Loading...' : 'No directory set'}</span>
+        </div>
+      </div>`,
+    generateJs: (props) => `
+      // Latest Image Widget: ${props.id}
+      (function() {
+        const dir = ${JSON.stringify(props.directoryPath || '')};
+        const imgEl = document.getElementById('${props.id}-img');
+        const placeholder = document.getElementById('${props.id}-placeholder');
+        const filenameEl = document.getElementById('${props.id}-filename');
+        
+        async function loadLatest() {
+          if (!dir) return;
+          try {
+            const res = await fetch('/api/latest-image?dir=' + encodeURIComponent(dir));
+            const data = await res.json();
+            if (data.status === 'ok' && data.image) {
+              imgEl.src = data.image.dataUrl;
+              imgEl.style.display = 'block';
+              placeholder.style.display = 'none';
+              if (filenameEl) filenameEl.textContent = data.image.name;
+            } else {
+              placeholder.textContent = data.message || 'No images found';
+            }
+          } catch (e) {
+            placeholder.textContent = 'Error loading image';
+          }
+        }
+        
+        loadLatest();
+        setInterval(loadLatest, ${(props.refreshInterval || 60) * 1000});
+      })();
+    `
+  },
+
   'image-embed': {
     name: 'Web Image',
     icon: '🌐',
@@ -2545,7 +2616,71 @@ const WIDGETS = {
       update_${props.id.replace(/-/g, '_')}();
       setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
     `
-  }
+  },
+
+  'pages-menu': {
+    name: 'Pages Menu',
+    icon: '📑',
+    category: 'small',
+    description: 'Navigation links to all discovered LobsterBoard pages. Supports vertical or horizontal layout.',
+    defaultWidth: 220,
+    defaultHeight: 200,
+    hasApiKey: false,
+    properties: {
+      title: 'Pages',
+      layout: 'vertical',
+      showBorder: true,
+      refreshInterval: 60
+    },
+    preview: `<div style="padding:6px;font-size:11px;color:#8b949e;">
+      <div>📝 Notes</div>
+      <div>📋 Board</div>
+      <div>📅 Calendar</div>
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">📑 ${props.title || 'Pages'}</span>
+        </div>
+        <div class="dash-card-body pages-menu ${props.layout === 'horizontal' ? 'pages-menu-horizontal' : 'pages-menu-vertical'}" id="${props.id}-list">
+          <span class="pages-menu-item">Loading…</span>
+        </div>
+      </div>
+      <style>
+        .pages-menu-vertical { display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
+        .pages-menu-horizontal { display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:center; }
+        .pages-menu-item {
+          display:inline-flex; align-items:center; gap:6px;
+          padding:6px 10px; border-radius:6px;
+          background:#21262d; color:#c9d1d9;
+          text-decoration:none; font-size:13px;
+          transition: background .15s, color .15s;
+        }
+        .pages-menu-item:hover { background:#30363d; color:#58a6ff; }
+        .pages-menu-item .pages-menu-icon { font-size:15px; }
+      </style>`,
+    generateJs: (props) => `
+      async function update_${props.id.replace(/-/g, '_')}() {
+        try {
+          const res = await fetch('/api/pages');
+          const pages = await res.json();
+          const list = document.getElementById('${props.id}-list');
+          if (!pages.length) { list.innerHTML = '<span class="pages-menu-item">No pages found</span>'; return; }
+          list.innerHTML = pages.map(p =>
+            '<a class="pages-menu-item" href="/pages/' + p.id + '" title="' + (p.description || p.title || p.name || '') + '">' +
+            '<span class="pages-menu-icon">' + (p.icon || '📄') + '</span>' +
+            '<span>' + (p.title || p.name || p.id) + '</span></a>'
+          ).join('');
+        } catch (e) {
+          console.error('Pages menu widget error:', e);
+          document.getElementById('${props.id}-list').innerHTML = '<span class="pages-menu-item">Error loading pages</span>';
+        }
+      }
+      update_${props.id.replace(/-/g, '_')}();
+      setInterval(update_${props.id.replace(/-/g, '_')}, ${(props.refreshInterval || 60) * 1000});
+    `
+  },
+
 };
 
 // Export for use in builder

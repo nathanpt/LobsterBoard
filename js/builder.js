@@ -454,6 +454,19 @@ function createWidget(type, x, y) {
   document.getElementById('canvas').classList.add('has-widgets');
 }
 
+function applyWidgetFontScale(widget) {
+  const el = document.getElementById(widget.id);
+  if (!el) return;
+  const body = el.querySelector('.dash-card-body, .widget-render');
+  if (widget.properties.widgetFontScale) {
+    el.style.setProperty('--font-scale', widget.properties.widgetFontScale);
+    if (body) body.style.fontSize = (widget.properties.widgetFontScale * 100) + '%';
+  } else {
+    el.style.removeProperty('--font-scale');
+    if (body) body.style.removeProperty('font-size');
+  }
+}
+
 function renderWidget(widget) {
   const template = WIDGETS[widget.type];
   if (!template) {
@@ -467,6 +480,9 @@ function renderWidget(widget) {
   el.dataset.type = widget.type;
   if (widget.type === 'text-header') {
     el.dataset.showBorder = widget.properties.showBorder ? 'true' : 'false';
+  }
+  if (widget.type === 'pages-menu' && widget.properties.showBorder === false) {
+    el.dataset.showBorder = 'false';
   }
   el.id = widget.id;
   el.style.left = widget.x + 'px';
@@ -521,6 +537,7 @@ function renderWidget(widget) {
   });
 
   canvas.appendChild(el);
+  applyWidgetFontScale(widget);
 }
 
 function renderWidgetPreview(widget) {
@@ -670,7 +687,12 @@ function initProperties() {
   document.getElementById('prop-api-key').addEventListener('input', onPropertyChange);
   document.getElementById('prop-api-key-value').addEventListener('input', onPropertyChange);
   document.getElementById('prop-endpoint').addEventListener('input', onPropertyChange);
+  if (document.getElementById('prop-directorypath')) {
+    document.getElementById('prop-directorypath').addEventListener('input', onPropertyChange);
+    document.getElementById('btn-browse-dir').addEventListener('click', () => openDirBrowser());
+  }
   document.getElementById('prop-refresh').addEventListener('change', onPropertyChange);
+  document.getElementById('prop-widgetfontscale').addEventListener('change', onPropertyChange);
   document.getElementById('prop-timeformat').addEventListener('change', onPropertyChange);
 
   // Show header checkbox
@@ -745,6 +767,7 @@ function showProperties(widget) {
   // Hide all optional groups first
   document.getElementById('prop-api-group').style.display = 'none';
   document.getElementById('prop-endpoint-group').style.display = 'none';
+  if (document.getElementById('prop-directorypath-group')) document.getElementById('prop-directorypath-group').style.display = 'none';
   document.getElementById('prop-location-group').style.display = 'none';
   document.getElementById('prop-locations-group').style.display = 'none';
   document.getElementById('prop-units-group').style.display = 'none';
@@ -890,6 +913,11 @@ function showProperties(widget) {
   }
 
   // Show quick links fields
+  if (widget.type === 'image-latest' && document.getElementById('prop-directorypath-group')) {
+    document.getElementById('prop-directorypath-group').style.display = 'block';
+    document.getElementById('prop-directorypath').value = widget.properties.directoryPath || '';
+  }
+
   if (widget.type === 'quick-links') {
     document.getElementById('prop-quicklinks-group').style.display = 'block';
     if (!widget.properties.links) widget.properties.links = [];
@@ -944,6 +972,9 @@ function showProperties(widget) {
 
   document.getElementById('prop-refresh').value = widget.properties.refreshInterval || 60;
 
+  // Widget font scale (per-widget override)
+  document.getElementById('prop-widgetfontscale').value = widget.properties.widgetFontScale || '';
+
   // Render dynamic extra properties for fields not handled by hardcoded groups
   renderExtraProperties(widget, template);
 
@@ -961,13 +992,15 @@ function showProperties(widget) {
 const HANDLED_PROPS = new Set([
   'title', 'showHeader', 'refreshInterval', 'endpoint',
   'fontSize', 'fontColor', 'textAlign', 'fontWeight',
-  'showBorder', 'lineColor', 'lineThickness', 'columns', 'feedUrl',
+  'showBorder', 'lineColor', 'lineThickness', 'columns', 'feedUrl', 'layout',
   'location', 'locations', 'units', 'format24h',
   'targetDate', 'showHours', 'showMinutes',
   'workMinutes', 'breakMinutes',
   'imagePath', 'imageUrl', 'images', 'links',
   'embedUrl', 'repo', 'currentVersion', 'openclawUrl',
-  'apiKey', 'apiKeyNote'
+  'apiKey', 'apiKeyNote',
+  'widgetFontScale',
+  'directoryPath'
 ]);
 
 // Known select/dropdown options for specific properties
@@ -1248,6 +1281,7 @@ function onPropertyChange(e) {
       break;
     case 'prop-layout':
       widget.properties.layout = e.target.value;
+      renderWidgetPreview(widget);
       break;
     case 'prop-location':
       widget.properties.location = e.target.value;
@@ -1305,8 +1339,19 @@ function onPropertyChange(e) {
     case 'prop-endpoint':
       widget.properties.endpoint = e.target.value;
       break;
+    case 'prop-directorypath':
+      widget.properties.directoryPath = e.target.value;
+      break;
     case 'prop-refresh':
       widget.properties.refreshInterval = parseInt(e.target.value) || 60;
+      break;
+    case 'prop-widgetfontscale':
+      if (e.target.value) {
+        widget.properties.widgetFontScale = parseFloat(e.target.value);
+      } else {
+        delete widget.properties.widgetFontScale;
+      }
+      applyWidgetFontScale(widget);
       break;
     case 'prop-fontsize':
       widget.properties.fontSize = parseInt(e.target.value) || 24;
@@ -2749,4 +2794,48 @@ Edit CSS variables in \`style.css\`:
 
 Generated: ${new Date().toISOString()}
 `;
+}
+
+// ─── Directory Browser for Latest Image widget ───
+async function openDirBrowser(startDir) {
+  const browser = document.getElementById('dir-browser');
+  const input = document.getElementById('prop-directorypath');
+  const dir = startDir || input.value || '~';
+  browser.style.display = 'block';
+  browser.innerHTML = '<span style="color:var(--text-muted);">Loading...</span>';
+  try {
+    const res = await fetch('/api/browse-dirs?dir=' + encodeURIComponent(dir));
+    const data = await res.json();
+    if (data.status !== 'ok') { browser.innerHTML = `<span style="color:#f85149;">${data.message}</span>`; return; }
+    let html = `<div style="margin-bottom:6px;color:var(--text-secondary);font-size:11px;word-break:break-all;">${data.path}</div>`;
+    if (data.imageCount > 0) {
+      html += `<div style="margin-bottom:6px;padding:4px 8px;background:var(--bg-secondary);border-radius:4px;color:#3fb950;font-size:11px;">📷 ${data.imageCount} image${data.imageCount !== 1 ? 's' : ''} in this folder</div>`;
+    }
+    const parent = data.path.replace(/\/[^/]+\/?$/, '') || '/';
+    if (data.path !== parent) {
+      html += `<div class="dir-entry" data-path="${parent}" style="cursor:pointer;padding:3px 6px;border-radius:4px;color:var(--text-primary);" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'">📁 ..</div>`;
+    }
+    for (const d of data.dirs) {
+      const full = data.path + '/' + d;
+      html += `<div class="dir-entry" data-path="${full}" style="cursor:pointer;padding:3px 6px;border-radius:4px;color:var(--text-primary);" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'">📁 ${d}</div>`;
+    }
+    if (data.dirs.length === 0 && data.imageCount === 0) {
+      html += `<div style="color:var(--text-muted);font-size:11px;padding:4px;">Empty directory</div>`;
+    }
+    html += `<div style="margin-top:8px;display:flex;gap:4px;">`;
+    html += `<button type="button" onclick="selectDir('${data.path.replace(/'/g, "\\'")}')" style="flex:1;padding:4px 8px;background:var(--accent-blue);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">✓ Select this folder</button>`;
+    html += `<button type="button" onclick="document.getElementById('dir-browser').style.display='none'" style="padding:4px 8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:4px;cursor:pointer;font-size:11px;">Cancel</button>`;
+    html += `</div>`;
+    browser.innerHTML = html;
+    browser.querySelectorAll('.dir-entry').forEach(el => {
+      el.addEventListener('click', () => openDirBrowser(el.dataset.path));
+    });
+  } catch (e) { browser.innerHTML = `<span style="color:#f85149;">Error: ${e.message}</span>`; }
+}
+
+function selectDir(dirPath) {
+  const input = document.getElementById('prop-directorypath');
+  input.value = dirPath;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  document.getElementById('dir-browser').style.display = 'none';
 }

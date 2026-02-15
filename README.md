@@ -1,14 +1,10 @@
 # 🦞 LobsterBoard
 
-A self-hosted, drag-and-drop dashboard builder with live system monitoring, dark theme, and 45 widgets. No cloud dependencies.
+A self-hosted, drag-and-drop dashboard builder with 47 widgets, custom pages, and zero cloud dependencies. One Node.js server, no frameworks, no build step needed.
 
 ![LobsterBoard](lobsterboard-logo-final.png)
 
-![LobsterBoard Dashboard Example](screenshot.jpg)
-
 ## Quick Start
-
-### Option A: npm install
 
 ```bash
 npm install lobsterboard
@@ -16,10 +12,10 @@ cd node_modules/lobsterboard
 node server.cjs
 ```
 
-### Option B: Clone & Run
+Or clone it:
 
 ```bash
-git clone https://github.com/curbob/LobsterBoard.git
+git clone https://github.com/Curbob/LobsterBoard.git
 cd LobsterBoard
 npm install
 node server.cjs
@@ -27,201 +23,208 @@ node server.cjs
 
 Open **http://localhost:8080** → press **Ctrl+E** to enter edit mode → drag widgets from the sidebar → click **💾 Save**.
 
-## How It Works
+## Features
 
-LobsterBoard runs as a single Node.js server (`server.cjs`) that:
-
-- **Serves the dashboard** — a vanilla JS single-page app (no build step, no frameworks)
-- **Saves/loads config** — `GET/POST /config` persists your layout to `config.json`
-- **Streams live system stats** — CPU, memory, disk, network, and Docker container data via Server-Sent Events (`/api/stats/stream`) using [systeminformation](https://github.com/nicholasricci/systeminformation)
-- **Proxies external feeds** — iCal calendars (`/api/calendar`), RSS feeds (`/api/rss`) fetched server-side to avoid CORS issues
-- **Provides API endpoints** — todos, cron jobs, system logs, auth status, release checks, and today's activity summary
-
-The server binds to `127.0.0.1:8080` by default. Configure with environment variables:
-
-```bash
-PORT=3000 node server.cjs              # Custom port
-HOST=0.0.0.0 node server.cjs           # Expose to network (trusted networks only!)
-```
-
-## Edit Mode
-
-Press **Ctrl+E** (or click **Edit Layout**) to toggle edit mode:
-
-- **Drag widgets** from the sidebar onto the canvas
-- **Click a widget** to select it and edit properties in the right panel
-- **Drag to reposition**, resize with the corner handle
-- **20px snap grid** keeps things aligned
-- **Canvas sizes** — 1920×1080, 2560×1440, or custom
-- **Font scale** — adjust text size globally across all widgets
-- Click **💾 Save** to persist, then exit edit mode for the live dashboard
-
-In view mode, the canvas auto-scales to fit your browser window and all widget scripts run live.
-
-## Widgets (45)
-
-### 🖥️ System Monitoring
-Live data via SSE — updates every 2–30 seconds automatically.
-
-| Widget | Description |
-|--------|-------------|
-| 💻 CPU / Memory | Real-time CPU load and memory usage |
-| 💾 Disk Usage | Disk space with ring gauge (configurable mount point) |
-| 🌐 Network Speed | Upload/download throughput |
-| 📡 Uptime Monitor | System uptime, CPU load, and memory summary |
-| 🐳 Docker Containers | Container list with running/stopped status |
-
-### 🦞 OpenClaw Integration
-For users running [OpenClaw](https://github.com/openclaw/openclaw).
-
-| Widget | Description |
-|--------|-------------|
-| 🔐 Auth Status | Anthropic Max subscription vs. API key indicator |
-| 🦞 OpenClaw Release | Auto-detects installed version, compares to latest GitHub release |
-| 📋 Activity List | Today's activity from memory files, git commits, and cron runs |
-| ⏰ Cron Jobs | Scheduled jobs with status and last-run times |
-| 🔧 System Log | Parsed gateway log with level/category color coding |
-| 💬 Active Sessions | Count of active OpenClaw sessions |
-| 📊 Token Gauge | Visual gauge of token usage against a limit |
-
-### 🤖 AI / LLM Monitoring
-
-| Widget | Description |
-|--------|-------------|
-| 🟣 Claude Usage | Anthropic API token/cost tracking (today/week/month) |
-| 💰 AI Cost Tracker | Total AI spending across providers |
-
-### ⏰ Time & Productivity
-
-| Widget | Description |
-|--------|-------------|
-| 🕐 Clock | Digital clock (12h/24h) |
-| 🌍 World Clock | Multiple time zones side by side |
-| ⏳ Countdown | Days (and optionally hours/minutes) to a target date |
-| 🎯 Pomodoro Timer | Focus timer with work/break intervals and audio alerts |
-| ✅ Todo List | Persistent task list with checkboxes (saved to `todos.json`) |
-| 📅 Calendar | Upcoming events from any iCal (.ics) feed URL |
-| 📝 Notes | Editable text area on the dashboard |
-
-### 🌤️ Weather
-
-| Widget | Description |
-|--------|-------------|
-| 🌡️ Local Weather | Current conditions via wttr.in (no API key needed) |
-| 🌍 World Weather | Multiple cities side by side |
-
-### 💰 Finance
-
-| Widget | Description |
-|--------|-------------|
-| 📈 Stock Ticker | Stock prices (requires Finnhub API key) |
-| ₿ Crypto Price | Cryptocurrency prices from CoinGecko (free) |
-
-### 🏠 Smart Home
-
-| Widget | Description |
-|--------|-------------|
-| 🏠 Indoor Climate | Temperature/humidity from sensor API |
-| 📷 Camera Feed | Live MJPEG camera stream |
-| 🔌 Power Usage | Real-time power consumption |
-
-### 📰 Media & Content
-
-| Widget | Description |
-|--------|-------------|
-| 📰 RSS Ticker | Headlines from any RSS/Atom feed (server-side proxy) |
-| 🎵 Now Playing | Currently playing track from Spotify/music API |
-| 💭 Quote of Day | Random inspirational quotes |
-| 📧 Unread Emails | Email count from API endpoint |
-
-### 🔗 Embeds & Media
-
-| Widget | Description |
-|--------|-------------|
-| 🖼️ Image | Local/embedded image (base64 for portability) |
-| 🎲 Random Image | Rotates through multiple images on a timer |
-| 🌐 Image Embed | Display an image from a URL |
-| 🔗 Quick Links | Bookmark grid with favicons |
-| 📺 Iframe Embed | Embed any web page |
-
-### 📦 Utilities
-
-| Widget | Description |
-|--------|-------------|
-| 📦 Release Tracker | Compare local version to latest GitHub release for any repo |
-| 🔄 API Status | Health check indicators for multiple endpoints |
-| 🐙 GitHub Stats | Public repo/follower/star counts for any user |
-| 😴 Sleep Score | Sleep data ring gauge (health API integration) |
-
-### 🎨 Layout
-
-| Widget | Description |
-|--------|-------------|
-| 🔤 Header / Text | Custom text with configurable font size, color, weight, and alignment |
-| ➖ Horizontal Line | Divider line (adjustable color and thickness) |
-| │ Vertical Line | Vertical divider |
+- **Drag-and-drop editor** — visual layout with 20px snap grid, resize handles, property panel
+- **47 widgets** — system monitoring, weather, calendars, RSS, smart home, finance, AI/LLM tracking, and more
+- **Custom pages** — extend your dashboard with full custom pages (notes, kanban boards, anything)
+- **Canvas sizes** — preset resolutions (1920×1080, 2560×1440, etc.) or custom sizes
+- **Live data** — system stats stream via Server-Sent Events, widgets auto-refresh
+- **Dark theme** — the only correct choice
+- **No cloud** — everything runs locally, your data stays yours
 
 ## Configuration
 
-Widget properties are edited in the right-hand panel when a widget is selected in edit mode. Common options:
+```bash
+PORT=3000 node server.cjs              # Custom port
+HOST=0.0.0.0 node server.cjs           # Expose to network
+```
 
-- **Title** — display name and header visibility toggle
-- **Refresh Interval** — how often the widget polls for data (seconds)
-- **Endpoint** — API URL for data-driven widgets
-- **Location** — city name for weather widgets
-- **iCal URL** — feed URL for the calendar widget (Google Calendar, Outlook, Apple Calendar all supported)
-- **Feed URL** — RSS/Atom feed for the ticker widget
+Widget settings are edited in the right-hand panel during edit mode. All configuration saves to `config.json`.
 
-All configuration is saved to `config.json` in the project root.
+## Widgets
+
+### 🖥️ System Monitoring
+| Widget | Description |
+|--------|-------------|
+| CPU / Memory | Real-time CPU load and memory usage |
+| Disk Usage | Disk space with ring gauge |
+| Network Speed | Upload/download throughput |
+| Uptime Monitor | System uptime, CPU load, memory summary |
+| Docker Containers | Container list with status |
+
+### 🌤️ Weather
+| Widget | Description |
+|--------|-------------|
+| Local Weather | Current conditions for your city |
+| World Weather | Multi-city weather overview |
+
+### ⏰ Time & Productivity
+| Widget | Description |
+|--------|-------------|
+| Clock | Analog/digital clock |
+| World Clock | Multiple time zones |
+| Countdown | Timer to a target date |
+| Todo List | Persistent task list |
+| Pomodoro Timer | Work/break timer |
+
+### 📰 Media & Content
+| Widget | Description |
+|--------|-------------|
+| RSS Ticker | Scrolling feed from any RSS/Atom URL |
+| Calendar | iCal feed display (Google, Apple, Outlook) |
+| Now Playing | Currently playing media |
+| Quote of Day | Random inspirational quotes |
+| Quick Links | Bookmark grid |
+
+### 🤖 AI / LLM Monitoring
+| Widget | Description |
+|--------|-------------|
+| Claude Usage | Anthropic API spend tracking |
+| AI Usage (All) | Multi-provider usage dashboard |
+| AI Cost Tracker | Monthly cost breakdown |
+| API Status | Provider availability |
+| Active Sessions | OpenClaw session monitor |
+| Token Gauge | Context window usage |
+
+### 💰 Finance
+| Widget | Description |
+|--------|-------------|
+| Stock Ticker | Live stock prices |
+| Crypto Price | Cryptocurrency tracker |
+
+### 🏠 Smart Home
+| Widget | Description |
+|--------|-------------|
+| Indoor Climate | Temperature/humidity sensors |
+| Camera Feed | IP camera stream |
+| Power Usage | Energy monitoring |
+
+### 🔗 Embeds & Media
+| Widget | Description |
+|--------|-------------|
+| Image / Random Image / Web Image | Static, rotating, or remote images |
+| Iframe Embed | Embed any webpage |
+
+### 🎨 Layout
+| Widget | Description |
+|--------|-------------|
+| Header / Text | Custom text with formatting |
+| Horizontal Line | Divider |
+| Vertical Line | Vertical divider |
+| Pages Menu | Navigation for custom pages |
+
+## Custom Pages
+
+LobsterBoard includes a pages system for adding full custom pages beyond the widget dashboard. Pages get their own route, nav entry, and optional server-side API.
+
+```
+pages/
+└── my-page/
+    ├── page.json       # Metadata (title, icon, order)
+    ├── index.html      # Page UI
+    └── api.cjs         # Optional: server-side API routes
+```
+
+Pages are auto-discovered on startup. Drop a folder in `pages/`, restart the server, and it appears in the nav.
+
+👉 **Full guide with examples:** [`pages/README.md`](pages/README.md)
+
+## Run on Boot
+
+### macOS (launchd)
+
+```bash
+cat > ~/Library/LaunchAgents/com.lobsterboard.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key><string>com.lobsterboard</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/local/bin/node</string>
+      <string>/path/to/lobsterboard/server.cjs</string>
+    </array>
+    <key>WorkingDirectory</key><string>/path/to/lobsterboard</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PORT</key><string>8080</string>
+      <key>HOST</key><string>0.0.0.0</string>
+    </dict>
+  </dict>
+</plist>
+EOF
+
+launchctl load ~/Library/LaunchAgents/com.lobsterboard.plist
+```
+
+Update the paths to match your install location and Node.js binary (`which node`).
+
+### Linux (systemd)
+
+```bash
+sudo cat > /etc/systemd/system/lobsterboard.service << 'EOF'
+[Unit]
+Description=LobsterBoard Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/lobsterboard
+ExecStart=/usr/bin/node server.cjs
+Environment=PORT=8080 HOST=0.0.0.0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable lobsterboard
+sudo systemctl start lobsterboard
+```
+
+### pm2 (any OS)
+
+```bash
+npm install -g pm2
+cd /path/to/lobsterboard
+PORT=8080 HOST=0.0.0.0 pm2 start server.cjs --name lobsterboard
+pm2 save
+pm2 startup
+```
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/config` | GET/POST | Load/save dashboard layout |
-| `/api/stats` | GET | Current system stats (JSON snapshot) |
-| `/api/stats/stream` | GET | Live system stats (SSE, max 10 connections) |
-| `/api/todos` | GET/POST | Read/write todo list |
-| `/api/calendar?url=&max=` | GET | Proxy + parse iCal feed |
+| `/api/stats/stream` | GET | Live system stats (SSE) |
+| `/api/pages` | GET | List custom pages |
+| `/api/todos` | GET/POST | Todo list data |
+| `/api/calendar?url=` | GET | Proxy iCal feed |
 | `/api/rss?url=` | GET | Proxy RSS/Atom feed |
-| `/api/cron` | GET | OpenClaw cron job status |
-| `/api/logs` | GET | Last 50 gateway log lines |
-| `/api/system-log` | GET | Structured log entries with levels |
-| `/api/auth` | GET | OpenClaw auth profile info |
-| `/api/releases` | GET | OpenClaw version check (cached 1hr) |
-| `/api/today` | GET | Today's activity summary |
-| `/api/activity` | GET | Recent entries from memory file |
 
 ## File Structure
 
 ```
-dashboard-builder/
-├── server.cjs          # Node.js server (CommonJS)
-├── index.html          # Single-page app
-├── config.json         # Saved dashboard layout
-├── todos.json          # Todo list data
+lobsterboard/
+├── server.cjs          # Node.js server
+├── app.html            # Dashboard builder
+├── config.json         # Your saved layout
 ├── js/
-│   ├── builder.js      # Canvas, drag-drop, edit mode, zoom, config I/O
-│   └── widgets.js      # All 45 widget definitions + SSE helpers
+│   ├── builder.js      # Editor: drag-drop, zoom, config I/O
+│   └── widgets.js      # All 47 widget definitions
 ├── css/
-│   └── builder.css     # Dark theme (CSS custom properties)
-└── package.json        # npm package config
+│   └── builder.css     # Dark theme styles
+├── pages/              # Custom pages (auto-discovered)
+│   └── README.md       # Page creation guide
+└── package.json
 ```
-
-## npm Package
-
-LobsterBoard is published as `lobsterboard` on npm. The package exports:
-
-```js
-// ESM
-import { WIDGETS } from 'lobsterboard/widgets';
-import { state } from 'lobsterboard/builder';
-
-// UMD (browser)
-<script src="https://unpkg.com/lobsterboard"></script>
-```
-
-Requires Node.js ≥ 16.
 
 ## License
 
@@ -229,4 +232,4 @@ MIT
 
 ---
 
-Made with 🦞 by [curbob](https://github.com/curbob)
+Made with 🦞 by [Curbob](https://github.com/Curbob)

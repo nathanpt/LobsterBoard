@@ -1028,6 +1028,28 @@ const server = http.createServer(async (req, res) => {
   }
 
   // GET /api/stats/stream - SSE endpoint for live stats
+  if (req.method === 'GET' && pathname === '/api/latest-image') {
+    return latestImageHandler(parsedUrl, res);
+  }
+
+  if (req.method === 'GET' && pathname === '/api/browse-dirs') {
+    const dir = parsedUrl.searchParams.get('dir') || os.homedir();
+    const resolved = path.resolve(dir.replace(/^~/, os.homedir()));
+    const home = os.homedir();
+    if (!resolved.startsWith(home + path.sep) && resolved !== home) {
+      return sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'error', message: 'Must be under home directory' }));
+    }
+    try {
+      const entries = fs.readdirSync(resolved, { withFileTypes: true })
+        .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+        .map(e => e.name)
+        .sort((a, b) => a.localeCompare(b));
+      const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+      const imageCount = fs.readdirSync(resolved).filter(f => imageExts.includes(path.extname(f).toLowerCase())).length;
+      sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'ok', path: resolved, dirs: entries, imageCount }));
+    } catch (error) { sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'error', message: error.message })); }
+  }
+
   if (req.method === 'GET' && pathname === '/api/stats/stream') {
     if (sseClients.size >= 10) {
       sendError(res, 'Too many SSE connections', 429);
@@ -1073,6 +1095,31 @@ const server = http.createServer(async (req, res) => {
     sendResponse(res, 200, contentType, data);
   });
 });
+
+// GET /api/latest-image?dir=<path> - newest image from a directory
+const latestImageHandler = (parsedUrl, res) => {
+  const dir = parsedUrl.searchParams.get('dir');
+  if (!dir) return sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'error', message: 'Missing dir parameter' }));
+  const resolved = path.resolve(dir.replace(/^~/, os.homedir()));
+  const home = os.homedir();
+  if (!resolved.startsWith(home + path.sep) && resolved !== home) {
+    return sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'error', message: 'Directory must be under home' }));
+  }
+  try {
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+    const files = fs.readdirSync(resolved)
+      .filter(f => imageExts.includes(path.extname(f).toLowerCase()))
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(resolved, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    if (files.length === 0) return sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'ok', image: null, message: 'No images found' }));
+    const latest = files[0];
+    const ext = path.extname(latest.name).toLowerCase().replace('.', '');
+    const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+    const data = fs.readFileSync(path.join(resolved, latest.name));
+    const b64 = data.toString('base64');
+    sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'ok', image: { name: latest.name, mtime: latest.mtime, dataUrl: `data:${mime};base64,${b64}` }, total: files.length }));
+  } catch (error) { sendResponse(res, 200, 'application/json', JSON.stringify({ status: 'error', message: error.message })); }
+};
 
 // Graceful shutdown
 process.on('SIGTERM', () => server.close(() => process.exit(0)));
