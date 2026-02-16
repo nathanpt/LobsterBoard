@@ -17,10 +17,10 @@ COPY js ./js
 COPY css ./css
 COPY templates ./templates
 COPY pages ./pages
-COPY pages.json ./
 
-# Create necessary directories
-RUN mkdir -p data
+# Create necessary directories and default config files
+RUN mkdir -p data && \
+    echo '{"pages":{}}' > pages.json
 
 # Expose port
 EXPOSE 8080
