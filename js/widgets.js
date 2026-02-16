@@ -2898,6 +2898,186 @@ const WIDGETS = {
     `
   },
 
+  'health-dashboard': {
+    name: 'Health Dashboard',
+    icon: '🏥',
+    category: 'medium',
+    description: 'Shows server health, API status, errors, and warnings. Real-time monitoring.',
+    defaultWidth: 400,
+    defaultHeight: 280,
+    hasApiKey: false,
+    properties: {
+      title: 'Health Status',
+      refreshInterval: 30,
+      showErrors: true,
+      showWarnings: true,
+      showApiStatus: true
+    },
+    preview: `<div style="padding:8px;font-size:11px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="width:10px;height:10px;background:#3fb950;border-radius:50%;"></span>
+        <span style="color:#3fb950;font-weight:bold;">Healthy</span>
+      </div>
+      <div style="color:#8b949e;font-size:10px;">CPU: 15% | RAM: 42% | SSE: 2 clients</div>
+      <div style="color:#f85149;font-size:10px;margin-top:4px;">⚠️ 2 warnings</div>
+    </div>`,
+    generateHtml: (props) => `
+      <div class="dash-card" id="widget-${props.id}" style="height:100%;">
+        <div class="dash-card-head">
+          <span class="dash-card-title">🏥 ${props.title || 'Health Status'}</span>
+          <button id="${props.id}-refresh" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0;margin-left:auto;" title="Refresh now">🔄</button>
+        </div>
+        <div class="dash-card-body" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;">
+          <div id="${props.id}-status" style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--bg-secondary);border-radius:6px;">
+            <span id="${props.id}-indicator" style="width:12px;height:12px;border-radius:50%;background:var(--border);"></span>
+            <span id="${props.id}-status-text" style="font-weight:bold;font-size:calc(13px * var(--font-scale, 1));">Loading...</span>
+          </div>
+          <div id="${props.id}-metrics" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:calc(11px * var(--font-scale, 1));">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="color:var(--text-muted);">Uptime</span>
+              <span id="${props.id}-uptime">—</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="color:var(--text-muted);">Requests</span>
+              <span id="${props.id}-requests">—</span>
+            </div>
+          </div>
+          ${props.showApiStatus ? `
+          <div id="${props.id}-apis" style="display:flex;flex-direction:column;gap:4px;">
+            <div style="color:var(--text-muted);font-size:calc(11px * var(--font-scale, 1));padding-bottom:2px;">API Status</div>
+            <div id="${props.id}-apis-list" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+          </div>
+          ` : ''}
+          ${props.showErrors || props.showWarnings ? `
+          <div id="${props.id}-issues" style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto;">
+            <div style="color:var(--text-muted);font-size:calc(11px * var(--font-scale, 1));padding-bottom:2px;">Recent Issues</div>
+            <div id="${props.id}-issues-list"></div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `,
+    generateJs: (props) => `
+      // Health Dashboard Widget: ${props.id}
+      (function() {
+        const widget = document.getElementById('widget-${props.id}');
+        const indicator = document.getElementById('${props.id}-indicator');
+        const statusText = document.getElementById('${props.id}-status-text');
+        const uptimeEl = document.getElementById('${props.id}-uptime');
+        const requestsEl = document.getElementById('${props.id}-requests');
+        const apisListEl = document.getElementById('${props.id}-apis-list');
+        const issuesListEl = document.getElementById('${props.id}-issues-list');
+        const refreshBtn = document.getElementById('${props.id}-refresh');
+
+        const showErrors = ${props.showErrors !== false};
+        const showWarnings = ${props.showWarnings !== false};
+        const showApiStatus = ${props.showApiStatus !== false};
+
+        function formatUptime(seconds) {
+          if (!seconds) return '—';
+          const d = Math.floor(seconds / 86400);
+          const h = Math.floor((seconds % 86400) / 3600);
+          const m = Math.floor((seconds % 3600) / 60);
+          if (d > 0) return d + 'd ' + h + 'h';
+          if (h > 0) return h + 'h ' + m + 'm';
+          return m + 'm';
+        }
+
+        function getStatusColor(status) {
+          switch (status) {
+            case 'healthy': return '#3fb950';
+            case 'degraded': return '#d29922';
+            case 'unhealthy': return '#f85149';
+            default: return 'var(--border)';
+          }
+        }
+
+        async function loadHealth() {
+          try {
+            const res = await fetch('/api/health');
+            const data = await res.json();
+
+            // Update status indicator
+            indicator.style.background = getStatusColor(data.status);
+            statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+            statusText.style.color = getStatusColor(data.status);
+
+            // Update metrics
+            uptimeEl.textContent = formatUptime(data.uptime);
+            requestsEl.textContent = data.requests.total + ' total';
+
+            // Update API status
+            if (showApiStatus && apisListEl) {
+              const apiBadges = Object.entries(data.apis || {}).map(([name, api]) => {
+                const color = getStatusColor(api.status);
+                return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg-tertiary);border-radius:4px;font-size:10px;' +
+                  (api.status === 'unhealthy' ? 'border:1px solid ' + color + ';' : '') + '">' +
+                  '<span style="width:6px;height:6px;border-radius:50%;background:' + color + ';"></span>' +
+                  '<span>' + name + '</span>' +
+                  '<span style="color:var(--text-muted);">' + api.successRate + '%</span>' +
+                  '</span>';
+              }).join('');
+              apisListEl.innerHTML = apiBadges || '<span style="color:var(--text-muted);font-size:10px;">No APIs</span>';
+            }
+
+            // Update issues
+            if ((showErrors || showWarnings) && issuesListEl) {
+              let issuesHtml = '';
+
+              if (showErrors && data.recentErrors && data.recentErrors.length > 0) {
+                issuesHtml += data.recentErrors.slice(0, 3).map(err =>
+                  '<div style="padding:4px 6px;background:#f8514920;border-left:2px solid #f85149;border-radius:3px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                  '<span style="color:#f85149;">✖</span> ' + err.message +
+                  '</div>'
+                ).join('');
+              }
+
+              if (showWarnings && data.recentWarnings && data.recentWarnings.length > 0) {
+                issuesHtml += data.recentWarnings.slice(0, 3).map(warn =>
+                  '<div style="padding:4px 6px;background:#d2992220;border-left:2px solid #d29922;border-radius:3px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                  '<span style="color:#d29922;">⚠</span> ' + warn.message +
+                  '</div>'
+                ).join('');
+              }
+
+              if (!issuesHtml) {
+                issuesHtml = '<span style="color:var(--text-muted);font-size:10px;">No issues ✓</span>';
+              }
+
+              issuesListEl.innerHTML = issuesHtml;
+            }
+          } catch (e) {
+            console.error('Health dashboard error:', e);
+            indicator.style.background = getStatusColor('unhealthy');
+            statusText.textContent = 'Error';
+            statusText.style.color = getStatusColor('unhealthy');
+            if (issuesListEl) {
+              issuesListEl.innerHTML = '<div style="padding:4px 6px;background:#f8514920;border-left:2px solid #f85149;border-radius:3px;font-size:10px;">Failed to load health data</div>';
+            }
+          }
+        }
+
+        loadHealth();
+        const interval = setInterval(loadHealth, ${(props.refreshInterval || 30) * 1000});
+
+        // Manual refresh
+        if (refreshBtn) {
+          refreshBtn.addEventListener('click', () => {
+            refreshBtn.style.transform = 'rotate(360deg)';
+            refreshBtn.style.transition = 'transform 0.5s';
+            setTimeout(() => refreshBtn.style.transform = '', 500);
+            loadHealth();
+          });
+        }
+
+        // Cleanup on widget remove
+        widget.addEventListener('DOMNodeRemoved', () => {
+          clearInterval(interval);
+        });
+      })();
+    `
+  },
+
 };
 
 // Export for use in builder

@@ -42,10 +42,12 @@ npm run build:watch
 - Static file serving (app.html, css/, js/)
 - Config load/save endpoints (`/config`)
 - System stats streaming via SSE (`/api/stats/stream`)
+- Health monitoring system (`/api/health`)
 - Template gallery API (`/api/templates/*`)
 - Pages system auto-discovery and mounting (`/pages/*`, `/api/pages/*`)
 - RSS/iCal proxy endpoints for widgets
 - Todo/Notes persistence
+- Request tracking and error monitoring
 
 **app.html** - Main dashboard builder UI
 
@@ -180,6 +182,41 @@ When adding a new widget, define it in `js/widgets.js` (and `src/widgets.js` for
 - Canvas can be fixed height or scrollable (`height: "auto"`)
 - System stats use shared SSE connection to avoid multiple connections
 - Template screenshots are captured via html2canvas when exporting
+
+## Health Dashboard System
+
+LobsterBoard includes a built-in health monitoring system that tracks:
+- Server uptime and response statistics
+- API call success rates and response times
+- Error and warning tracking (last 24 hours)
+- System resource usage (CPU, memory, disk)
+- SSE connection count and active widgets
+
+**Health Widget** (`health-dashboard`):
+- Real-time health status indicator (healthy/degraded/unhealthy)
+- API status badges with success rates
+- Recent errors and warnings display
+- Manual refresh button
+- Configurable refresh interval
+
+**Health API Endpoints:**
+- `GET /api/health` - Comprehensive health status JSON
+- `POST /api/health/clear-errors` - Clear error/warning logs
+- `GET /api/health/test-api/:type` - Test external API connectivity
+
+**Server-Side Tracking:**
+```javascript
+// Track API calls
+trackApiCall('weather', success, responseTime, error);
+
+// Track errors
+trackError('type', 'message', { details });
+
+// Track warnings
+trackWarning('type', 'message', { details });
+```
+
+Health metrics are automatically tracked for all requests and can be accessed via the `/api/health` endpoint.
 
 ## Testing Changes
 

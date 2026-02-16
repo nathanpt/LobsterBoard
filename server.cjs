@@ -16,6 +16,91 @@ const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '127.0.0.1';
 
 // ─────────────────────────────────────────────
+// Health Monitoring System
+// ─────────────────────────────────────────────
+const healthMetrics = {
+  startTime: Date.now(),
+  uptime: () => Math.floor((Date.now() - healthMetrics.startTime) / 1000),
+  requests: { total: 0, success: 0, error: 0, byPath: {} },
+  apiCalls: {
+    weather: { success: 0, error: 0, lastError: null, avgResponseTime: 0 },
+    rss: { success: 0, error: 0, lastError: null, avgResponseTime: 0 },
+    calendar: { success: 0, error: 0, lastError: null, avgResponseTime: 0 },
+    github: { success: 0, error: 0, lastError: null, avgResponseTime: 0 },
+    stocks: { success: 0, error: 0, lastError: null, avgResponseTime: 0 },
+    releases: { success: 0, error: 0, lastError: null, avgResponseTime: 0 }
+  },
+  systemStats: {
+    lastUpdate: null,
+    cpuLoad: 0,
+    memoryUsage: 0,
+    diskUsage: 0,
+    dockerRunning: false
+  },
+  services: {
+    sseConnections: 0,
+    activeWidgets: 0,
+    loadedPages: 0,
+    diskSpaceHealthy: true
+  },
+  errors: [],
+  warnings: []
+};
+
+// Add error to tracking (max 100 errors)
+function trackError(type, message, details = {}) {
+  const error = {
+    time: new Date().toISOString(),
+    type,
+    message,
+    details
+  };
+  healthMetrics.errors.unshift(error);
+  if (healthMetrics.errors.length > 100) healthMetrics.errors.pop();
+  healthMetrics.requests.error++;
+}
+
+// Add warning to tracking (max 50 warnings)
+function trackWarning(type, message, details = {}) {
+  const warning = {
+    time: new Date().toISOString(),
+    type,
+    message,
+    details
+  };
+  healthMetrics.warnings.unshift(warning);
+  if (healthMetrics.warnings.length > 50) healthMetrics.warnings.pop();
+}
+
+// Track API call
+function trackApiCall(apiName, success, responseTime = 0, error = null) {
+  const api = healthMetrics.apiCalls[apiName];
+  if (!api) return;
+
+  if (success) {
+    api.success++;
+    // Update average response time
+    const totalCalls = api.success + api.error;
+    api.avgResponseTime = ((api.avgResponseTime * (totalCalls - 1)) + responseTime) / totalCalls;
+  } else {
+    api.error++;
+    api.lastError = {
+      time: new Date().toISOString(),
+      message: error?.message || 'Unknown error',
+      responseTime
+    };
+    trackError('api_call', `${apiName} API failed`, { api: apiName, error: error?.message });
+  }
+}
+
+// Clear old errors/warnings (keep last 24 hours)
+setInterval(() => {
+  const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+  healthMetrics.errors = healthMetrics.errors.filter(e => new Date(e.time).getTime() > cutoff);
+  healthMetrics.warnings = healthMetrics.warnings.filter(w => new Date(w.time).getTime() > cutoff);
+}, 60 * 60 * 1000); // Every hour
+
+// ─────────────────────────────────────────────
 // Pages System — auto-discovery and mounting
 // ─────────────────────────────────────────────
 const PAGES_DIR = path.join(__dirname, 'pages');
@@ -179,6 +264,7 @@ function matchPageRoute(pages, method, pathname, parsedUrl) {
 
 // Initialize pages
 loadedPages = loadPages();
+healthMetrics.services.loadedPages = loadedPages.length;
 console.log(`📄 Loaded ${loadedPages.length} page(s): ${loadedPages.map(p => p.icon + ' ' + p.title).join(', ') || 'none'}`);
 
 // ─────────────────────────────────────────────
@@ -200,6 +286,20 @@ function broadcastStats() {
   const payload = `data: ${JSON.stringify(cachedStats)}\n\n`;
   for (const res of sseClients) {
     try { res.write(payload); } catch (_) { sseClients.delete(res); }
+  }
+  // Update health metrics
+  healthMetrics.services.sseConnections = sseClients.size;
+  healthMetrics.systemStats.lastUpdate = new Date().toISOString();
+  if (cachedStats.cpu) healthMetrics.systemStats.cpuLoad = cachedStats.cpu.currentLoad;
+  if (cachedStats.memory) {
+    healthMetrics.systemStats.memoryUsage = (cachedStats.memory.used / cachedStats.memory.total) * 100;
+  }
+  if (cachedStats.disk && cachedStats.disk[0]) {
+    healthMetrics.systemStats.diskUsage = cachedStats.disk[0].use;
+    healthMetrics.services.diskSpaceHealthy = cachedStats.disk[0].use < 90;
+  }
+  if (cachedStats.docker) {
+    healthMetrics.services.dockerRunning = cachedStats.docker.length > 0;
   }
 }
 
@@ -326,6 +426,9 @@ function sendResponse(res, statusCode, contentType, data, extraHeaders = {}) {
 }
 
 function sendJson(res, statusCode, data) {
+  if (statusCode >= 200 && statusCode < 400) {
+    healthMetrics.requests.success++;
+  }
   sendResponse(res, statusCode, 'application/json', JSON.stringify(data), { 'Access-Control-Allow-Origin': '*' });
 }
 
@@ -373,6 +476,11 @@ function parseIcal(text, maxEvents) {
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
+
+  // Track request
+  healthMetrics.requests.total++;
+  const pathKey = pathname.split('?')[0];
+  healthMetrics.requests.byPath[pathKey] = (healthMetrics.requests.byPath[pathKey] || 0) + 1;
 
   // CORS preflight for /config
   if (req.method === 'OPTIONS' && pathname === '/config') {
@@ -1365,6 +1473,138 @@ const server = http.createServer(async (req, res) => {
       fs.rmSync(tplDir, { recursive: true, force: true });
       sendJson(res, 200, { status: 'success', message: `Template "${tplId}" deleted` });
     } catch (e) { sendError(res, e.message); }
+    return;
+  }
+
+  // ── Health Dashboard API ──
+
+  // GET /api/health - Comprehensive health status
+  if (req.method === 'GET' && pathname === '/api/health') {
+    // Load current config to count widgets
+    let activeWidgets = 0;
+    let widgetCounts = {};
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      activeWidgets = config.widgets?.length || 0;
+      config.widgets?.forEach(w => {
+        widgetCounts[w.type] = (widgetCounts[w.type] || 0) + 1;
+      });
+    } catch (_) {}
+
+    healthMetrics.services.activeWidgets = activeWidgets;
+
+    // Calculate overall health status
+    const errorRate = healthMetrics.requests.total > 0
+      ? (healthMetrics.requests.error / healthMetrics.requests.total) * 100
+      : 0;
+
+    let overallStatus = 'healthy';
+    if (errorRate > 10 || healthMetrics.errors.length > 50) overallStatus = 'degraded';
+    if (errorRate > 25 || !healthMetrics.services.diskSpaceHealthy) overallStatus = 'unhealthy';
+
+    // Get API health summary
+    const apiHealth = {};
+    for (const [name, stats] of Object.entries(healthMetrics.apiCalls)) {
+      const total = stats.success + stats.error;
+      const successRate = total > 0 ? (stats.success / total) * 100 : 100;
+      apiHealth[name] = {
+        successRate: Math.round(successRate),
+        totalCalls: total,
+        lastError: stats.lastError,
+        avgResponseTime: Math.round(stats.avgResponseTime),
+        status: successRate >= 90 ? 'healthy' : successRate >= 70 ? 'degraded' : 'unhealthy'
+      };
+    }
+
+    sendJson(res, 200, {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      uptime: healthMetrics.uptime(),
+      server: {
+        port: PORT,
+        host: HOST,
+        nodeVersion: process.version,
+        platform: os.platform(),
+        arch: os.arch()
+      },
+      services: {
+        ...healthMetrics.services,
+        pages: loadedPages.map(p => ({ id: p.id, title: p.title, icon: p.icon }))
+      },
+      system: {
+        cpuLoad: Math.round(healthMetrics.systemStats.cpuLoad || 0),
+        memoryUsage: Math.round(healthMetrics.systemStats.memoryUsage || 0),
+        diskUsage: Math.round(healthMetrics.systemStats.diskUsage || 0),
+        diskHealthy: healthMetrics.services.diskSpaceHealthy,
+        dockerRunning: healthMetrics.services.dockerRunning
+      },
+      requests: {
+        total: healthMetrics.requests.total,
+        success: healthMetrics.requests.success,
+        error: healthMetrics.requests.error,
+        errorRate: Math.round(errorRate * 10) / 10
+      },
+      apis: apiHealth,
+      widgets: {
+        active: activeWidgets,
+        byType: widgetCounts
+      },
+      recentErrors: healthMetrics.errors.slice(0, 10),
+      recentWarnings: healthMetrics.warnings.slice(0, 10)
+    });
+    return;
+  }
+
+  // POST /api/health/clear-errors - Clear error/warning logs
+  if (req.method === 'POST' && pathname === '/api/health/clear-errors') {
+    healthMetrics.errors = [];
+    healthMetrics.warnings = [];
+    sendJson(res, 200, { status: 'success', message: 'Error logs cleared' });
+    return;
+  }
+
+  // GET /api/health/test-api/:type - Test external API connectivity
+  if (req.method === 'GET' && pathname.match(/^\/api\/health\/test-api\/([^/]+)$/)) {
+    const apiType = pathname.split('/')[4];
+    const startTime = Date.now();
+
+    try {
+      let result, success = false;
+
+      switch (apiType) {
+        case 'weather':
+          result = await fetch('https://wttr.in/?format=j1', { timeout: 5000 });
+          success = result.ok;
+          break;
+        case 'github':
+          result = await fetch('https://api.github.com/repos/curbob/LobsterBoard', { timeout: 5000 });
+          success = result.ok;
+          break;
+        default:
+          sendJson(res, 400, { error: 'Unknown API type' });
+          return;
+      }
+
+      const responseTime = Date.now() - startTime;
+      trackApiCall(apiType, success, responseTime, success ? null : new Error(result.statusText));
+
+      sendJson(res, 200, {
+        api: apiType,
+        status: success ? 'ok' : 'failed',
+        responseTime,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) {
+      const responseTime = Date.now() - startTime;
+      trackApiCall(apiType, false, responseTime, e);
+      sendJson(res, 200, {
+        api: apiType,
+        status: 'error',
+        error: e.message,
+        responseTime,
+        timestamp: new Date().toISOString()
+      });
+    }
     return;
   }
 
