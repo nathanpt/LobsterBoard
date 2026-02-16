@@ -6,19 +6,13 @@ set -e
 
 echo "🦞 LobsterBoard starting..."
 
-# Ensure config directory exists
+# Ensure data directory exists
 mkdir -p /app/data
 
-# Fix if config.json was created as a directory (Docker volume issue)
-if [ -d /app/config.json ]; then
-  echo "⚠️  Removing config.json directory (will recreate as file)"
-  rm -rf /app/config.json
-fi
-
-# Create default config.json if it doesn't exist
-if [ ! -f /app/config.json ]; then
+# Create default config.json in data directory if it doesn't exist
+if [ ! -f /app/data/config.json ]; then
   echo "📝 Creating default config.json..."
-  cat > /app/config.json << 'EOF'
+  cat > /app/data/config.json << 'EOF'
 {
   "canvas": {
     "width": 1920,
@@ -30,24 +24,26 @@ if [ ! -f /app/config.json ]; then
 EOF
 fi
 
-# Fix if pages.json was created as a directory
-if [ -d /app/pages.json ]; then
-  echo "⚠️  Removing pages.json directory (will recreate as file)"
-  rm -rf /app/pages.json
-fi
-
-# Create default pages.json if it doesn't exist
-if [ ! -f /app/pages.json ]; then
+# Create default pages.json in data directory if it doesn't exist
+if [ ! -f /app/data/pages.json ]; then
   echo "📄 Creating default pages.json..."
-  cat > /app/pages.json << 'EOF'
+  cat > /app/data/pages.json << 'EOF'
 {
   "pages": {}
 }
 EOF
 fi
 
-# Ensure data directory exists with proper permissions
-mkdir -p /app/data
+# Symlink config files to app root if they don't exist
+if [ ! -L /app/config.json ] && [ ! -f /app/config.json ]; then
+  ln -s /app/data/config.json /app/config.json
+  echo "🔗 Symlinked config.json"
+fi
+
+if [ ! -L /app/pages.json ] && [ ! -f /app/pages.json ]; then
+  ln -s /app/data/pages.json /app/pages.json
+  echo "🔗 Symlinked pages.json"
+fi
 
 echo "✅ Configuration files ready"
 echo "🚀 Starting LobsterBoard on ${HOST:-0.0.0.0}:${PORT:-8080}"

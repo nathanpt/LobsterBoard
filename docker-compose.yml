@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   lobsterboard:
     build: .
@@ -11,11 +9,9 @@ services:
       - HOST=0.0.0.0
       - PORT=8080
     volumes:
-      # Persistent storage - will be auto-created by entrypoint if missing
-      # These map to local files/directories for easy backup and editing
-      - ./config.json:/app/config.json
-      - ./data:/app/data
-      - ./pages.json:/app/pages.json
+      # Mount a config directory instead of individual files
+      # This avoids Docker's file-vs-directory mount issues
+      - ./lobsterboard-data:/app/data
       # Uncomment to mount custom pages for development
       # - ./pages:/app/pages:ro
       # Uncomment to mount custom templates
