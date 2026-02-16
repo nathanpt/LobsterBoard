@@ -49,6 +49,39 @@ HOST=0.0.0.0 node server.cjs           # Expose to network
 
 Widget settings are edited in the right-hand panel during edit mode. All configuration saves to `config.json`.
 
+## Docker Deployment
+
+LobsterBoard includes Docker support for easy deployment with automatic configuration:
+
+```bash
+# Clone the repository
+git clone https://github.com/Curbob/LobsterBoard.git
+cd LobsterBoard
+
+# Start with Docker Compose (recommended)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+**What happens automatically:**
+- `config.json` is created with default values if missing
+- `pages.json` is created if missing
+- `data/` directory is created for persistence
+- All files are stored on your host for easy backup
+
+**Persistent files:**
+- `./config.json` - Your dashboard layout
+- `./pages.json` - Pages configuration
+- `./data/` - Widget data (todos, notes, etc.)
+
+**Custom configuration:**
+Edit `docker-compose.yml` to change ports or add custom pages/templates.
+
 ## Template Gallery
 
 ![Template Gallery](lobsterboard-templates.jpg)
