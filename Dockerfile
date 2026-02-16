@@ -1,6 +1,19 @@
 # LobsterBoard Dockerfile
 FROM node:18-alpine
 
+# Install system dependencies needed for systeminformation
+# These are required for CPU, memory, disk, and network stats
+RUN apk add --no-cache \
+    coreutils \
+    dmidecode \
+    ethtool \
+    iproute2 \
+    net-tools \
+    smartmontools \
+    util-linux \
+    procps \
+    tzdata
+
 # Set working directory
 WORKDIR /app
 
