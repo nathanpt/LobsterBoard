@@ -858,7 +858,7 @@ const server = http.createServer(async (req, res) => {
       const activities = [];
 
       // 1. Today's memory file headers
-      const memoryDir = path.join(os.homedir(), 'clawd', 'memory');
+      const memoryDir = path.join(os.homedir(), '.openclaw', 'memory');
       const todayFile = path.join(memoryDir, `${dateStr}.md`);
       if (fs.existsSync(todayFile)) {
         const content = fs.readFileSync(todayFile, 'utf8');
@@ -875,7 +875,7 @@ const server = http.createServer(async (req, res) => {
       // 2. Git commits from today
       try {
         const commits = execSync(
-          `cd ~/clawd && git log --since="today 00:00" --pretty=format:"%s" 2>/dev/null`,
+          `cd ~/.openclaw && git log --since="today 00:00" --pretty=format:"%s" 2>/dev/null`,
           { encoding: 'utf8', timeout: 5000 }
         ).trim();
         if (commits) {
