@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  lobsterboard:
+    build: .
+    container_name: lobsterboard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      # Mount config and data directories for persistence
+      - ./config.json:/app/config.json
+      - ./data:/app/data
+      - ./pages.json:/app/pages.json
+    # Optional: Add custom pages
+    # - ./pages:/app/pages
+    # Optional: Add custom templates
+    # - ./templates:/app/templates

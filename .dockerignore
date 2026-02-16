@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Distribution files (not needed in container)
+dist
+.rollup.cache
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+CHANGELOG.md
+CLAUDE.md
+LICENSE
+*.md
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development files
+rollup.config.js
+src
+bin
+
+# Screenshots and assets not needed for runtime
+*.jpg
+*.png
+!apple-touch-icon.png
+!favicon.png
+
+# Data directories (will be mounted as volumes)
+data
+config.json
+pages.json
+
+# OS files
+.DS_Store
+Thumbs.db
