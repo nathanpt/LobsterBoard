@@ -69,15 +69,17 @@ docker-compose down
 ```
 
 **What happens automatically:**
-- `config.json` is created with default values if missing
-- `pages.json` is created if missing
-- `data/` directory is created for persistence
-- All files are stored on your host for easy backup
+- `lobsterboard-data/` directory is created if missing
+- `config.json` and `pages.json` are created with defaults if missing
+- Symlinks are created for the server to find the files
 
 **Persistent files:**
-- `./config.json` - Your dashboard layout
-- `./pages.json` - Pages configuration
-- `./data/` - Widget data (todos, notes, etc.)
+- `./lobsterboard-data/config.json` - Your dashboard layout
+- `./lobsterboard-data/pages.json` - Pages configuration
+- `./lobsterboard-data/` - All widget data (todos, notes, etc.)
+
+**Backup:**
+Simply copy the `lobsterboard-data/` directory to backup everything.
 
 **Custom configuration:**
 Edit `docker-compose.yml` to change ports or add custom pages/templates.
