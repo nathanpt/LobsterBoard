@@ -35,8 +35,8 @@ bin
 
 # Data directories (will be mounted as volumes)
 data
-config.json
-pages.json
+# Note: config.json and pages.json are intentionally NOT ignored
+# They will be auto-created by docker-entrypoint.sh if missing
 
 # OS files
 .DS_Store

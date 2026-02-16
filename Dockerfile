@@ -17,10 +17,13 @@ COPY js ./js
 COPY css ./css
 COPY templates ./templates
 COPY pages ./pages
+COPY docker-entrypoint.sh ./
 
-# Create necessary directories and default config files
-RUN mkdir -p data && \
-    echo '{"pages":{}}' > pages.json
+# Make entrypoint executable
+RUN chmod +x docker-entrypoint.sh
+
+# Create necessary directories
+RUN mkdir -p data
 
 # Expose port
 EXPOSE 8080
@@ -33,5 +36,5 @@ ENV PORT=8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start the server
-CMD ["node", "server.cjs"]
+# Use entrypoint script to ensure config files exist
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

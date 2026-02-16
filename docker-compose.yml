@@ -11,11 +11,12 @@ services:
       - HOST=0.0.0.0
       - PORT=8080
     volumes:
-      # Mount config and data directories for persistence
+      # Persistent storage - will be auto-created by entrypoint if missing
+      # These map to local files/directories for easy backup and editing
       - ./config.json:/app/config.json
       - ./data:/app/data
       - ./pages.json:/app/pages.json
-    # Optional: Add custom pages
-    # - ./pages:/app/pages
-    # Optional: Add custom templates
-    # - ./templates:/app/templates
+      # Uncomment to mount custom pages for development
+      # - ./pages:/app/pages:ro
+      # Uncomment to mount custom templates
+      # - ./templates:/app/templates:ro
