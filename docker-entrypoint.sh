@@ -9,6 +9,12 @@ echo "🦞 LobsterBoard starting..."
 # Ensure config directory exists
 mkdir -p /app/data
 
+# Fix if config.json was created as a directory (Docker volume issue)
+if [ -d /app/config.json ]; then
+  echo "⚠️  Removing config.json directory (will recreate as file)"
+  rm -rf /app/config.json
+fi
+
 # Create default config.json if it doesn't exist
 if [ ! -f /app/config.json ]; then
   echo "📝 Creating default config.json..."
@@ -22,6 +28,12 @@ if [ ! -f /app/config.json ]; then
   "widgets": []
 }
 EOF
+fi
+
+# Fix if pages.json was created as a directory
+if [ -d /app/pages.json ]; then
+  echo "⚠️  Removing pages.json directory (will recreate as file)"
+  rm -rf /app/pages.json
 fi
 
 # Create default pages.json if it doesn't exist
